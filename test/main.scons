@@ -1,0 +1,18 @@
+from itertools import chain, cycle, izip
+
+def GetAbsolutePaths(filenames):
+	return map(lambda f: File(f).srcnode().abspath, filenames)
+
+env = Environment(CXX = 'g++-5', CPPPATH = ['#'], LINKFLAGS = '-lpthread')
+env.Append(CPPFLAGS = Split('-std=c++11 -ggdb -Werror=all -Werror=extra -Werror=pedantic -pedantic -pedantic-errors'))
+
+forced_includes = GetAbsolutePaths(Split('helgrind_annotations.h'))
+env.Append(CPPFLAGS = list(chain(map(lambda f: ['-include', f], forced_includes))))
+
+source_files = Split('test.cpp')
+
+object_files = env.Object(source_files)
+for f in forced_includes:
+	object_files = env.Depends(object_files, f)
+
+test_program = env.Program(object_files)

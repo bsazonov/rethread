@@ -1,0 +1,19 @@
+{
+   GCC atomic store builtin is considered non-atomic by helgrind :(
+   Helgrind:Race
+   fun:store
+   fun:_ZNSt13__atomic_baseIbEaSEb
+}
+{
+   GCC atomic load builtin is considered non-atomic by helgrind
+   Helgrind:Race
+   fun:load
+   fun:_ZNKSt6atomicIbEcvbEv
+}
+{
+   GCC atomic load builtin is considered non-atomic by helgrind. Version with memory_order
+   Helgrind:Race
+   fun:load
+   fun:_ZNKSt6atomicIbE4loadESt12memory_order
+}
+
