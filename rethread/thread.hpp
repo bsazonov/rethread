@@ -9,8 +9,8 @@ namespace rethread
 	class thread
 	{
 	private:
-		std::thread                         _impl;
-		std::unique_ptr<cancellation_token> _token;
+		std::thread                              _impl;
+		std::unique_ptr<cancellation_token_impl> _token;
 
 	public:
 		using id = std::thread::id;
@@ -20,44 +20,53 @@ namespace rethread
 		thread() noexcept = default;
 		thread(const thread&) = delete;
 
-		thread(thread&& other) noexcept
-		{ swap(other); }
+		thread(thread&& other) noexcept :
+			_impl(std::move(other._impl)), _token(std::move(other._token))
+		{ }
 
 		template<class Function, class... Args>
-		explicit thread(Function&& f, Args&&... args) : _token(new cancellation_token())
-		{ _impl = std::thread(std::bind(std::forward<Function>(f), std::cref(*_token), std::forward<Args>(args)...)); }
+		explicit thread(Function&& f, Args&&... args) : _token(new cancellation_token_impl())
+		{ _impl = std::thread(std::forward<Function>(f), std::ref(*_token), std::forward<Args>(args)...); }
 
 		~thread()
 		{
 			if (joinable())
-				join();
+				reset();
 		}
 
-		thread& operator = (thread&& other)
-		{ swap(other); }
+		thread& operator = (thread&& other) noexcept
+		{
+			thread tmp(std::move(other));
+			swap(tmp);
+			return *this;
+		}
 
-		void swap(thread& other)
+		void swap(thread& other) noexcept
 		{
 			_impl.swap(other._impl);
 			_token.swap(other._token);
 		}
 
-		bool joinable() const
+		bool joinable() const noexcept
 		{ return _impl.joinable(); }
 
-		id get_id() const
+		id get_id() const noexcept
 		{ return _impl.get_id(); }
 
 		native_handle_type native_handle()
 		{ return _impl.native_handle(); }
 
-		static unsigned int hardware_concurrency()
+		static unsigned int hardware_concurrency() noexcept
 		{ return std::thread::hardware_concurrency(); }
 
 		void join()
+		{ _impl.join(); }
+
+		void reset()
 		{
-			_token->Cancel();
+			_token->cancel();
 			_impl.join();
+			*this = rethread::thread();
 		}
 	};
 
