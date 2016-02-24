@@ -1,0 +1,16 @@
+sudo: required
+dist: trusty
+language: cpp
+cache: apt
+compiler:
+  - gcc
+
+addons:
+  apt:
+    packages:
+      - valgrind
+
+script: 
+  - scons
+  - valgrind --suppressions=etc/valgrind.suppressions --tool=helgrind --gen-suppressions=all --error-exitcode=1 --read-var-info=yes ./build/test
+  - valgrind --suppressions=etc/valgrind.suppressions --tool=memcheck --leak-check=full --gen-suppressions=all --error-exitcode=1 --read-var-info=yes ./build/test
