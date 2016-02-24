@@ -5,15 +5,25 @@
    fun:_ZNSt13__atomic_baseIbEaSEb
 }
 {
-   GCC atomic load builtin is considered non-atomic by helgrind
+   GCC-5 atomic load
    Helgrind:Race
    fun:load
    fun:_ZNKSt6atomicIbEcvbEv
 }
 {
-   GCC atomic load builtin is considered non-atomic by helgrind. Version with memory_order
+   GCC-5 atomic load 2
    Helgrind:Race
    fun:load
    fun:_ZNKSt6atomicIbE4loadESt12memory_order
+}
+{
+   GCC-4.8 atomic store
+   Helgrind:Race
+   fun:_ZNSt13__atomic_baseIbE5storeEbSt12memory_order
+}
+{
+   GCC-4.8 atomic load
+   Helgrind:Race
+   fun:_ZNKSt13__atomic_baseIbE4loadESt12memory_order
 }
 
