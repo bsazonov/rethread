@@ -8,6 +8,7 @@ compiler:
 addons:
   apt:
     packages:
+      - libboost-dev
       - valgrind
 
 script: 
