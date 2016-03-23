@@ -49,7 +49,7 @@ namespace rethread
 	}
 
 
-	short poll(int fd, short events, const cancellation_token& token)
+	inline short poll(int fd, short events, int timeoutMs, const cancellation_token& token)
 	{
 		detail::poll_cancellation_handler handler;
 		cancellation_guard guard(token, handler);
@@ -64,8 +64,22 @@ namespace rethread
 		fds[1].fd = handler.get_fd();
 		fds[1].events = POLLIN;
 
-		RETHREAD_CHECK(::poll(fds, 2, -1) != -1, std::system_error(errno, std::system_category()));
+		RETHREAD_CHECK(::poll(fds, 2, timeoutMs) != -1, std::system_error(errno, std::system_category()));
 		return fds[0].revents;
+	}
+
+
+	inline short poll(int fd, short events, const cancellation_token& token)
+	{ return poll(fd, events, -1, token); }
+
+
+	/// @brief   Cancellable version of POSIX read(...). Uses cancellable poll to implement cancellable waiting.
+	/// @returns Zero if cancelled, otherwise read() result
+	inline ssize_t read(int fd, void* buf, size_t nbyte, const cancellation_token& token)
+	{
+		if (poll(fd, POLLIN, token) != POLLIN)
+			return 0;
+		return ::read(fd, buf, nbyte);
 	}
 }
 
