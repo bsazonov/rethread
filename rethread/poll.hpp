@@ -9,10 +9,49 @@
 #include <poll.h>
 #include <unistd.h>
 
+#if !defined(RETHREAD_DISABLE_EVENTFD)
+#include <sys/eventfd.h>
+#endif
+
 namespace rethread
 {
 	namespace detail
 	{
+#if !defined(RETHREAD_DISABLE_EVENTFD)
+		struct poll_cancellation_handler : public cancellation_handler
+		{
+		private:
+			int _eventfd;
+
+		public:
+			poll_cancellation_handler()
+			{
+				_eventfd = ::eventfd(0, 0);
+				RETHREAD_CHECK(_eventfd != -1, std::system_error(errno, std::system_category(), "eventfd failed"));
+			}
+
+			virtual ~poll_cancellation_handler()
+			{ RETHREAD_CHECK(::close(_eventfd) == 0, std::system_error(errno, std::system_category())); }
+
+			poll_cancellation_handler(const poll_cancellation_handler&) = delete;
+			poll_cancellation_handler& operator = (const poll_cancellation_handler&) = delete;
+
+			void cancel() override
+			{
+				uint64_t val = 1;
+				RETHREAD_CHECK(::write(_eventfd, &val, sizeof(val)) == sizeof(val), std::system_error(errno, std::system_category()));
+			}
+
+			void reset() override
+			{
+				uint64_t val;
+				RETHREAD_CHECK(::read(_eventfd, &val, sizeof(val)) == sizeof(val), std::system_error(errno, std::system_category()));
+			}
+
+			int get_fd() const
+			{ return _eventfd; }
+		};
+#else
 		struct poll_cancellation_handler : public cancellation_handler
 		{
 		private:
@@ -46,6 +85,7 @@ namespace rethread
 			int get_fd() const
 			{ return _pipe[0]; }
 		};
+#endif
 	}
 
 
