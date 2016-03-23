@@ -211,27 +211,37 @@ namespace rethread
 	class cancellation_guard : public cancellation_guard_base
 	{
 	private:
-		const cancellation_token& _token;
-		cancellation_handler&     _handler;
-		bool                      _registered;
+		const cancellation_token* _token;
+		cancellation_handler*     _handler;
 
 	public:
 		cancellation_guard(const cancellation_guard&) = delete;
 		cancellation_guard& operator = (const cancellation_guard&) = delete;
 
+		cancellation_guard() :
+			_token(nullptr), _handler(nullptr)
+		{ }
+
 		cancellation_guard(const cancellation_token& token, cancellation_handler& handler) :
-			_token(token), _handler(handler)
-		{ _registered = try_register(_token, _handler); }
+			_token(nullptr), _handler(&handler)
+		{
+			if (try_register(token, handler))
+				_token = &token;
+		}
+
+		cancellation_guard(cancellation_guard&& other) :
+			_token(other._token), _handler(other._handler)
+		{ other._token = nullptr; }
 
 		~cancellation_guard()
 		{
-			if (!_registered || RETHREAD_LIKELY(try_unregister(_token)))
+			if (!_token || RETHREAD_LIKELY(try_unregister(*_token)))
 				return;
-			unregister(_token);
+			unregister(*_token);
 		}
 
 		bool is_cancelled() const
-		{ return !_registered; }
+		{ return !_token; }
 	};
 }
 
