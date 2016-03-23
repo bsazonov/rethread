@@ -28,6 +28,9 @@ namespace rethread
 				RETHREAD_CHECK(::close(_pipe[1]) == 0, std::system_error(errno, std::system_category()));
 			}
 
+			poll_cancellation_handler(const poll_cancellation_handler&) = delete;
+			poll_cancellation_handler& operator = (const poll_cancellation_handler&) = delete;
+
 			void cancel() override
 			{
 				char dummy = 0;
