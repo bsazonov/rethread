@@ -4,8 +4,13 @@
 #include <exception>
 #include <type_traits>
 
-#define RETHREAD_LIKELY(Condition_) (Condition_)
+#ifdef __GNUC__
+#define RETHREAD_LIKELY(Condition_)   __builtin_expect((Condition_), 1)
+#define RETHREAD_UNLIKELY(Condition_) __builtin_expect((Condition_), 0)
+#else
+#define RETHREAD_LIKELY(Condition_)   (Condition_)
 #define RETHREAD_UNLIKELY(Condition_) (Condition_)
+#endif
 
 #define RETHREAD_THROW(Exception_) ::rethread::detail::throw_exception(Exception_, __FILE__, __LINE__)
 #define RETHREAD_CHECK(Condition_, Exception_) do { if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); } while (false)
