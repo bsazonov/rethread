@@ -9,7 +9,12 @@
 
 #define RETHREAD_THROW(Exception_) ::rethread::detail::throw_exception(Exception_, __FILE__, __LINE__)
 #define RETHREAD_CHECK(Condition_, Exception_) do { if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); } while (false)
+
+#ifndef RETHREAD_SUPPRESS_CHECKS
 #define RETHREAD_ASSERT(Condition_, Message_) do { if (RETHREAD_UNLIKELY(!(Condition_))) std::terminate(); } while (false)
+#else
+#define RETHREAD_ASSERT(Condition_, Message_) do { } while (false)
+#endif
 
 namespace rethread {
 namespace detail {
