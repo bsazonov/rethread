@@ -193,6 +193,112 @@ namespace rethread
 	};
 
 
+	class cancellation_token_atomic : public cancellation_token
+	{
+		std::atomic<bool>                          _cancelled{false};
+		mutable std::atomic<cancellation_handler*> _cancelHandler{nullptr};
+
+		mutable std::mutex                         _mutex;
+		mutable std::condition_variable            _cv;
+		mutable bool                               _cancelDone{false};
+
+	public:
+		cancellation_token_atomic() = default;
+		cancellation_token_atomic(const cancellation_token_atomic&) = delete;
+		cancellation_token_atomic& operator = (const cancellation_token_atomic&) = delete;
+
+		void cancel() override
+		{
+			cancellation_handler* cancelHandler = nullptr;
+			{
+				std::unique_lock<std::mutex> l(_mutex);
+				if (_cancelled)
+					return;
+
+				_cancelled = true;
+
+				cancelHandler = _cancelHandler.exchange(HazardPointer());
+				RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
+			}
+
+			if (cancelHandler)
+				cancelHandler->cancel();
+
+			{
+				std::unique_lock<std::mutex> l(_mutex);
+				_cancelDone = true;
+				_cv.notify_all();
+			}
+		}
+
+		void reset() override
+		{
+			std::unique_lock<std::mutex> l(_mutex);
+			RETHREAD_ASSERT(!_cancelHandler && (_cancelled == _cancelDone), "Cancellation token is in use!");
+			_cancelled = false;
+			_cancelDone = false;
+		}
+
+		bool is_cancelled() const override
+		{ return _cancelled.load(std::memory_order_relaxed); }
+
+	protected:
+		void do_sleep_for(const std::chrono::nanoseconds& duration) const override
+		{
+			std::unique_lock<std::mutex> l(_mutex);
+			if (is_cancelled())
+				return;
+
+			_cv.wait_for(l, duration);
+		}
+
+		bool try_register_cancellation_handler(cancellation_handler& handler) const override
+		{
+			cancellation_handler* h = _cancelHandler.exchange(&handler, std::memory_order_release);
+			if (RETHREAD_UNLIKELY(h != nullptr))
+			{
+				RETHREAD_ASSERT(h == HazardPointer(), "Cancellation handler already registered!");
+				return false;
+			}
+			return true;
+		}
+
+		bool try_unregister_cancellation_handler(cancellation_handler& handler) const override
+		{
+			cancellation_handler* h = _cancelHandler.exchange(nullptr, std::memory_order_acquire);
+			if (RETHREAD_LIKELY(h == &handler))
+				return true;
+
+			RETHREAD_ASSERT(h == HazardPointer(), "Another token was registered!");
+			_cancelHandler.exchange(h); // restore value
+			return false;
+		}
+
+		void unregister_cancellation_handler(cancellation_handler& handler) const override
+		{
+			if (try_unregister_cancellation_handler(handler))
+				return;
+
+			std::unique_lock<std::mutex> l(_mutex);
+			_cancelHandler = nullptr;
+
+			if (!_cancelled)
+				return;
+
+			while (!_cancelDone)
+				_cv.wait(l);
+
+			l.unlock();
+			handler.reset();
+		}
+
+	private:
+		// Dirty trick to optimize register/unregister down to one atomic exchange
+		static cancellation_handler* HazardPointer()
+		{ return reinterpret_cast<cancellation_handler*>(1); }
+	};
+
+
 	class cancellation_guard_base
 	{
 	protected:
