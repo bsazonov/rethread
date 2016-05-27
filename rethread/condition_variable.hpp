@@ -12,26 +12,31 @@ namespace rethread
 {
 	namespace detail
 	{
+		template<typename Condition, typename Lock>
 		class cv_cancellation_handler : public cancellation_handler
 		{
-			std::condition_variable&      _cv;
-			std::unique_lock<std::mutex>& _lock;
+		public:
+			using lock_type = Lock;
+
+		private:
+			Condition& _cv;
+			Lock&      _lock;
 
 		public:
-			cv_cancellation_handler(std::condition_variable& cv, std::unique_lock<std::mutex>& lock) : _cv(cv), _lock(lock)
+			cv_cancellation_handler(Condition& cv, Lock& lock) : _cv(cv), _lock(lock)
 			{ }
 
 			void cancel() override
 			{
-				// Canceller thread can get stuck here if waiting already ended.
+				// Canceller thread can get stuck here if the waiting already ended.
 				// We resolve it by special magic in cv_cancellation_guard::~cv_cancellation_guard().
-				std::mutex* m = _lock.mutex();
+				auto m = _lock.mutex();
 				RETHREAD_ASSERT(m, "Lock is not associated wit a mutex!");
-				std::unique_lock<std::mutex> l(*m);
+				Lock l(*m);
 				_cv.notify_all();
 			}
 
-			std::unique_lock<std::mutex>& get_lock() const
+			lock_type& get_lock() const
 			{ return _lock; }
 		};
 
@@ -50,17 +55,18 @@ namespace rethread
 		};
 
 
+		template<typename Handler>
 		class cv_cancellation_guard : public cancellation_guard_base
 		{
 			const cancellation_token& _token;
-			cv_cancellation_handler&  _handler;
+			Handler&                  _handler;
 			bool                      _registered;
 
 		public:
 			cv_cancellation_guard(const cv_cancellation_guard&) = delete;
 			cv_cancellation_guard& operator = (const cv_cancellation_guard&) = delete;
 
-			cv_cancellation_guard(const cancellation_token& token, cv_cancellation_handler& handler) :
+			cv_cancellation_guard(const cancellation_token& token, Handler& handler) :
 				_token(token), _handler(handler)
 			{ _registered = try_register(_token, _handler); }
 
@@ -72,7 +78,7 @@ namespace rethread
 				// We need to unlock mutex before unregistering, because canceller thread
 				// can get stuck at mutex in cv_cancellation_handler::cancel().
 				// When unregister returns, we are sure that canceller has left cancel(), so it is safe to lock mutex back.
-				reverse_lock<std::unique_lock<std::mutex>> ul(_handler.get_lock());
+				reverse_lock<typename Handler::lock_type> ul(_handler.get_lock());
 				unregister(_token, _handler);
 			}
 
@@ -82,33 +88,35 @@ namespace rethread
 	}
 
 
-	void wait(std::condition_variable& cv, std::unique_lock<std::mutex>& lock, cancellation_token& token)
+	template<typename Condition, typename Lock>
+	void wait(Condition& cv, Lock& lock, const cancellation_token& token)
 	{
-		detail::cv_cancellation_handler handler(cv, lock);
-		detail::cv_cancellation_guard guard(token, handler);
+		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
+		handler_type handler(cv, lock);
+		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
 			return;
 		cv.wait(lock);
 	}
 
-	template<class Rep, class Period>
-	std::cv_status wait_for(std::condition_variable& cv, std::unique_lock<std::mutex>& lock,
-		const std::chrono::duration<Rep, Period>& duration, cancellation_token& token)
+	template<typename Condition, typename Lock, typename Rep, typename Period>
+	std::cv_status wait_for(Condition& cv, Lock& lock, const std::chrono::duration<Rep, Period>& duration, const cancellation_token& token)
 	{
-		detail::cv_cancellation_handler handler(cv, lock);
-		detail::cv_cancellation_guard guard(token, handler);
+		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
+		handler_type handler(cv, lock);
+		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
 			return std::cv_status::no_timeout;
 		return cv.wait_for(lock, duration);
 	}
 
 
-	template<class Clock, class Duration>
-	std::cv_status wait_until(std::condition_variable& cv, std::unique_lock<std::mutex>& lock,
-		const std::chrono::time_point<Clock, Duration>& time_point, cancellation_token& token)
+	template<typename Condition, typename Lock, class Clock, class Duration>
+	std::cv_status wait_until(Condition& cv, Lock& lock, const std::chrono::time_point<Clock, Duration>& time_point, const cancellation_token& token)
 	{
-		detail::cv_cancellation_handler handler(cv, lock);
-		detail::cv_cancellation_guard guard(token, handler);
+		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
+		handler_type handler(cv, lock);
+		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
 			return std::cv_status::no_timeout;
 		return cv.wait_until(lock, time_point);
