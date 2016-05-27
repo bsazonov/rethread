@@ -63,12 +63,12 @@ namespace rethread
 
 		/// @pre Handler is registered
 		/// @returns Whether unregistration succeed
-		virtual bool try_unregister_cancellation_handler() const = 0;
+		virtual bool try_unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
 		/// @pre Handler is registered
 		/// @post Handler is not registered
-		/// @note Will invoke cancellation_handle::reset() if necessary
-		virtual void unregister_cancellation_handler() const = 0;
+		/// @note Will invoke cancellation_handler::reset() if necessary
+		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
 	private:
 		friend class cancellation_guard_base;
@@ -88,11 +88,11 @@ namespace rethread
 		{ return false; }
 
 	protected:
-		void do_sleep_for(const std::chrono::nanoseconds& duration) const override   { std::this_thread::sleep_for(duration); }
+		void do_sleep_for(const std::chrono::nanoseconds& duration) const override     { std::this_thread::sleep_for(duration); }
 
-		bool try_register_cancellation_handler(cancellation_handler&) const override { return true; }
-		bool try_unregister_cancellation_handler() const override                    { return true; }
-		void unregister_cancellation_handler() const override                        { }
+		bool try_register_cancellation_handler(cancellation_handler&) const override   { return true; }
+		bool try_unregister_cancellation_handler(cancellation_handler&) const override { return true; }
+		void unregister_cancellation_handler(cancellation_handler&) const override     { }
 	};
 
 
@@ -163,7 +163,7 @@ namespace rethread
 			return true;
 		}
 
-		bool try_unregister_cancellation_handler() const override
+		bool try_unregister_cancellation_handler(cancellation_handler&) const override
 		{
 			std::unique_lock<std::mutex> l(_mutex);
 			if (_cancelled)
@@ -173,7 +173,7 @@ namespace rethread
 			return true;
 		}
 
-		void unregister_cancellation_handler() const override
+		void unregister_cancellation_handler(cancellation_handler&) const override
 		{
 			std::unique_lock<std::mutex> l(_mutex);
 			RETHREAD_ASSERT(_cancelHandler, "No cancellation_handler!");
@@ -199,11 +199,11 @@ namespace rethread
 		bool try_register(const cancellation_token& token, cancellation_handler& handler)
 		{ return token.try_register_cancellation_handler(handler); }
 
-		bool try_unregister(const cancellation_token& token)
-		{ return token.try_unregister_cancellation_handler(); }
+		bool try_unregister(const cancellation_token& token, cancellation_handler& handler)
+		{ return token.try_unregister_cancellation_handler(handler); }
 
-		void unregister(const cancellation_token& token)
-		{ token.unregister_cancellation_handler(); }
+		void unregister(const cancellation_token& token, cancellation_handler& handler)
+		{ token.unregister_cancellation_handler(handler); }
 	};
 
 
@@ -234,9 +234,9 @@ namespace rethread
 
 		~cancellation_guard()
 		{
-			if (!_token || RETHREAD_LIKELY(try_unregister(*_token)))
+			if (!_token || RETHREAD_LIKELY(try_unregister(*_token, *_handler)))
 				return;
-			unregister(*_token);
+			unregister(*_token, *_handler);
 		}
 
 		bool is_cancelled() const

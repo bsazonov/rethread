@@ -66,14 +66,14 @@ namespace rethread
 
 			~cv_cancellation_guard()
 			{
-				if (!_registered || RETHREAD_LIKELY(try_unregister(_token)))
+				if (!_registered || RETHREAD_LIKELY(try_unregister(_token, _handler)))
 					return;
 
 				// We need to unlock mutex before unregistering, because canceller thread
 				// can get stuck at mutex in cv_cancellation_handler::cancel().
 				// When unregister returns, we are sure that canceller has left cancel(), so it is safe to lock mutex back.
 				reverse_lock<std::unique_lock<std::mutex>> ul(_handler.get_lock());
-				unregister(_token);
+				unregister(_token, _handler);
 			}
 
 			bool is_cancelled() const
