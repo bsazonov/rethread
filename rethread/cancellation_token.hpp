@@ -6,7 +6,6 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <exception>
 #include <mutex>
 #include <thread>
 
@@ -159,7 +158,7 @@ namespace rethread
 			if (_cancelled)
 				return false;
 
-			RETHREAD_CHECK(!_cancelHandler, std::logic_error("Cancellation handler already registered!"));
+			RETHREAD_ASSERT(!_cancelHandler, "Cancellation handler already registered!");
 			_cancelHandler = &handler;
 			return true;
 		}
