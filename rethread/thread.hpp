@@ -1,6 +1,8 @@
 #ifndef RETHREAD_THREAD_H
 #define RETHREAD_THREAD_H
 
+#include <rethread/cancellation_token.hpp>
+
 #include <thread>
 
 namespace rethread
