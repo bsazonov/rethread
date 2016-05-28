@@ -21,6 +21,17 @@
 #define RETHREAD_ASSERT(Condition_, Message_) do { } while (false)
 #endif
 
+#ifdef RETHREAD_USE_HELGRIND_ANNOTATIONS
+#include <valgrind/helgrind.h>
+#define RETHREAD_ANNOTATE_BEFORE(...) ANNOTATE_HAPPENS_BEFORE(__VA_ARGS__)
+#define RETHREAD_ANNOTATE_AFTER(...) ANNOTATE_HAPPENS_AFTER(__VA_ARGS__)
+#define RETHREAD_ANNOTATE_FORGET(...) ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(__VA_ARGS__)
+#else
+#define RETHREAD_ANNOTATE_BEFORE(...)
+#define RETHREAD_ANNOTATE_AFTER(...)
+#define RETHREAD_ANNOTATE_FORGET(...)
+#endif
+
 namespace rethread {
 namespace detail {
 

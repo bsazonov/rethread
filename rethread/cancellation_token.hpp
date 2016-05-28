@@ -222,7 +222,11 @@ namespace rethread
 			}
 
 			if (cancelHandler)
+			{
+				RETHREAD_ANNOTATE_AFTER(std::addressof(_cancelHandler));
 				cancelHandler->cancel();
+				RETHREAD_ANNOTATE_BEFORE(cancelHandler);
+			}
 
 			{
 				std::unique_lock<std::mutex> l(_mutex);
@@ -254,6 +258,7 @@ namespace rethread
 
 		bool try_register_cancellation_handler(cancellation_handler& handler) const override
 		{
+			RETHREAD_ANNOTATE_BEFORE(std::addressof(_cancelHandler));
 			cancellation_handler* h = _cancelHandler.exchange(&handler, std::memory_order_release);
 			if (RETHREAD_UNLIKELY(h != nullptr))
 			{
@@ -267,7 +272,11 @@ namespace rethread
 		{
 			cancellation_handler* h = _cancelHandler.exchange(nullptr, std::memory_order_acquire);
 			if (RETHREAD_LIKELY(h == &handler))
+			{
+				RETHREAD_ANNOTATE_AFTER(std::addressof(handler));
+				RETHREAD_ANNOTATE_FORGET(std::addressof(handler));
 				return true;
+			}
 
 			RETHREAD_ASSERT(h == HazardPointer(), "Another token was registered!");
 			_cancelHandler.exchange(h); // restore value
@@ -288,6 +297,8 @@ namespace rethread
 			while (!_cancelDone)
 				_cv.wait(l);
 
+			RETHREAD_ANNOTATE_AFTER(std::addressof(handler));
+			RETHREAD_ANNOTATE_FORGET(std::addressof(handler));
 			l.unlock();
 			handler.reset();
 		}
