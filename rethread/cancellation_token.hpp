@@ -238,7 +238,7 @@ namespace rethread
 		void reset() override
 		{
 			std::unique_lock<std::mutex> l(_mutex);
-			RETHREAD_ASSERT((!_cancelHandler || _cancelHandler == HazardPointer()) && (_cancelled == _cancelDone), "Cancellation token is in use!");
+			RETHREAD_ASSERT((_cancelHandler.load() || _cancelHandler == HazardPointer()) && (_cancelled == _cancelDone), "Cancellation token is in use!");
 			_cancelled = false;
 			_cancelDone = false;
 		}
