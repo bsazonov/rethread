@@ -54,8 +54,6 @@ namespace rethread
 		{ return !is_cancelled(); }
 
 	protected:
-		virtual ~cancellation_token() { }
-
 		template<typename Rep, typename Period>
 		void sleep_for(const std::chrono::duration<Rep, Period>& duration) const
 		{ do_sleep_for(std::chrono::duration_cast<std::chrono::nanoseconds>(duration)); }
@@ -95,6 +93,11 @@ namespace rethread
 		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
 	protected:
+		cancellation_token() = default;
+		cancellation_token(const cancellation_token&) = delete;
+		cancellation_token& operator = (const cancellation_token&) = delete;
+		~cancellation_token() = default;
+
 		// Dirty trick to optimize register/unregister down to one atomic exchange
 		static cancellation_handler* HazardPointer()
 		{ return reinterpret_cast<cancellation_handler*>(1); }
@@ -110,6 +113,12 @@ namespace rethread
 	class dummy_cancellation_token : public cancellation_token
 	{
 	public:
+		dummy_cancellation_token() = default;
+		// Base class can't be copied, but can default construct it, because dummy_cancellation_token may never cancelled state
+		dummy_cancellation_token(const dummy_cancellation_token&) : cancellation_token() { }
+		dummy_cancellation_token& operator = (const dummy_cancellation_token&) = delete;
+		~dummy_cancellation_token() = default;
+
 		void cancel() override { RETHREAD_THROW(std::logic_error("Dummy cancellation token can't be cancelled!")); }
 		void reset() override  { RETHREAD_THROW(std::logic_error("Dummy cancellation token can't be reset!")); }
 
@@ -136,6 +145,7 @@ namespace rethread
 		cancellation_token_atomic() = default;
 		cancellation_token_atomic(const cancellation_token_atomic&) = delete;
 		cancellation_token_atomic& operator = (const cancellation_token_atomic&) = delete;
+		~cancellation_token_atomic() = default;
 
 		void cancel() override
 		{
