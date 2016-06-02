@@ -12,6 +12,7 @@
 
 #include <rethread/cancellation_token.hpp>
 
+#include <memory>
 #include <thread>
 
 namespace rethread
