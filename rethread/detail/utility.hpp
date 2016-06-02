@@ -41,11 +41,29 @@
 #define RETHREAD_ANNOTATE_FORGET(...)
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define RETHREAD_NORETURN __declspec(noreturn)
+#else
+#define RETHREAD_NORETURN [[noreturn]]
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define RETHREAD_NOEXCEPT
+#else
+#define RETHREAD_NOEXCEPT noexcept
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define RETHREAD_CONSTEXPR const
+#else
+#define RETHREAD_CONSTEXPR constexpr
+#endif
+
 namespace rethread {
 namespace detail {
 
 	template <typename T>
-	[[noreturn]] inline typename std::enable_if<std::is_base_of<std::exception, T>::value>::type throw_exception(const T& t, const char*, int)
+	RETHREAD_NORETURN inline typename std::enable_if<std::is_base_of<std::exception, T>::value>::type throw_exception(const T& t, const char*, int)
 	{ throw t; }
 
 }

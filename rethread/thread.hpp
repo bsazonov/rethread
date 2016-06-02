@@ -29,10 +29,10 @@ namespace rethread
 		using native_handle_type = std::thread::native_handle_type;
 
 	public:
-		thread() noexcept = default;
+		thread() RETHREAD_NOEXCEPT = default;
 		thread(const thread&) = delete;
 
-		thread(thread&& other) noexcept :
+		thread(thread&& other) RETHREAD_NOEXCEPT :
 			_impl(std::move(other._impl)), _token(std::move(other._token))
 		{ }
 
@@ -46,29 +46,29 @@ namespace rethread
 				reset();
 		}
 
-		thread& operator = (thread&& other) noexcept
+		thread& operator = (thread&& other) RETHREAD_NOEXCEPT
 		{
 			thread tmp(std::move(other));
 			swap(tmp);
 			return *this;
 		}
 
-		void swap(thread& other) noexcept
+		void swap(thread& other) RETHREAD_NOEXCEPT
 		{
 			_impl.swap(other._impl);
 			_token.swap(other._token);
 		}
 
-		bool joinable() const noexcept
+		bool joinable() const RETHREAD_NOEXCEPT
 		{ return _impl.joinable(); }
 
-		id get_id() const noexcept
+		id get_id() const RETHREAD_NOEXCEPT
 		{ return _impl.get_id(); }
 
 		native_handle_type native_handle()
 		{ return _impl.native_handle(); }
 
-		static unsigned int hardware_concurrency() noexcept
+		static unsigned int hardware_concurrency() RETHREAD_NOEXCEPT
 		{ return std::thread::hardware_concurrency(); }
 
 		void join()
@@ -85,10 +85,10 @@ namespace rethread
 
 namespace this_thread
 {
-	inline thread::id get_id() noexcept
+	inline thread::id get_id() RETHREAD_NOEXCEPT
 	{ return std::this_thread::get_id(); }
 
-	inline void yield() noexcept
+	inline void yield() RETHREAD_NOEXCEPT
 	{ std::this_thread::yield(); }
 
 	template<typename Rep, typename Period>
