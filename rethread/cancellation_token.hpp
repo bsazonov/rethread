@@ -54,9 +54,6 @@ namespace rethread
 		mutable std::atomic<cancellation_handler*> _cancelHandler{nullptr};
 
 	public:
-		virtual void cancel() = 0;
-		virtual void reset() = 0;
-
 		bool is_cancelled() const
 		{ return _cancelled.load(std::memory_order_relaxed); }
 
@@ -129,9 +126,6 @@ namespace rethread
 		dummy_cancellation_token& operator = (const dummy_cancellation_token&) = delete;
 		~dummy_cancellation_token() = default;
 
-		void cancel() override { RETHREAD_THROW(std::logic_error("Dummy cancellation token can't be cancelled!")); }
-		void reset() override  { RETHREAD_THROW(std::logic_error("Dummy cancellation token can't be reset!")); }
-
 	protected:
 		void do_sleep_for(const std::chrono::nanoseconds& duration) const override     { std::this_thread::sleep_for(duration); }
 
@@ -157,7 +151,7 @@ namespace rethread
 		cancellation_token_atomic& operator = (const cancellation_token_atomic&) = delete;
 		~cancellation_token_atomic() = default;
 
-		void cancel() override
+		void cancel()
 		{
 			cancellation_handler* cancelHandler = nullptr;
 			{
@@ -186,7 +180,7 @@ namespace rethread
 			}
 		}
 
-		void reset() override
+		void reset()
 		{
 			std::unique_lock<std::mutex> l(_mutex);
 			RETHREAD_ASSERT((_cancelHandler.load() || _cancelHandler == HazardPointer()) && (_cancelled == _cancelDone), "Cancellation token is in use!");
