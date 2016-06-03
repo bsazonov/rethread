@@ -62,6 +62,9 @@ namespace rethread
 			reverse_lock(Lockable_& l) : _lockable(l)
 			{ _lockable.unlock(); }
 
+			reverse_lock(const reverse_lock&) = delete;
+			reverse_lock& operator = (const reverse_lock&) = delete;
+
 			~reverse_lock()
 			{ _lockable.lock(); }
 		};
