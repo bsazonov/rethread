@@ -21,8 +21,8 @@ namespace rethread
 	class thread
 	{
 	private:
-		std::thread                                _impl;
-		std::unique_ptr<cancellation_token_atomic> _token;
+		std::thread                                    _impl;
+		std::unique_ptr<standalone_cancellation_token> _token;
 
 	public:
 		using id = std::thread::id;
@@ -37,7 +37,7 @@ namespace rethread
 		{ }
 
 		template<class Function, class... Args>
-		explicit thread(Function&& f, Args&&... args) : _token(new cancellation_token_atomic())
+		explicit thread(Function&& f, Args&&... args) : _token(new standalone_cancellation_token())
 		{ _impl = std::thread(std::forward<Function>(f), std::ref(*_token), std::forward<Args>(args)...); }
 
 		~thread()

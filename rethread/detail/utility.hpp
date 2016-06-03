@@ -71,13 +71,13 @@
 #endif
 
 namespace rethread {
-namespace detail {
+namespace detail
+{
 
-	template <typename T>
-	RETHREAD_NORETURN inline typename std::enable_if<std::is_base_of<std::exception, T>::value>::type throw_exception(const T& t, const char*, int)
+	template <typename T_>
+	RETHREAD_NORETURN inline typename std::enable_if<std::is_base_of<std::exception, T_>::value>::type throw_exception(const T_& t, const char*, int)
 	{ throw t; }
 
-}
-}
+}}
 
 #endif

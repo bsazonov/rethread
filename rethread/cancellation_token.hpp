@@ -10,6 +10,7 @@
 // IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 // WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+#include <rethread/detail/intrusive_list.h>
 #include <rethread/detail/utility.hpp>
 
 #include <atomic>
@@ -18,7 +19,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <thread>
-
+#include <algorithm>
 
 namespace rethread
 {
@@ -50,12 +51,11 @@ namespace rethread
 	class cancellation_token
 	{
 	protected:
-		std::atomic<bool>                          _cancelled{false};
 		mutable std::atomic<cancellation_handler*> _cancelHandler{nullptr};
 
 	public:
 		bool is_cancelled() const
-		{ return _cancelled.load(std::memory_order_relaxed); }
+		{ return _cancelHandler.load(std::memory_order_relaxed) == HazardPointer(); }
 
 		explicit operator bool() const
 		{ return !is_cancelled(); }
@@ -103,7 +103,7 @@ namespace rethread
 	protected:
 		cancellation_token() = default;
 		cancellation_token(const cancellation_token&) = delete;
-		cancellation_token& operator = (const cancellation_token&) = delete;
+		cancellation_token& operator =(const cancellation_token&) = delete;
 		~cancellation_token() = default;
 
 		// Dirty trick to optimize register/unregister down to one atomic exchange
@@ -124,7 +124,7 @@ namespace rethread
 		dummy_cancellation_token() = default;
 		// Base class can't be copied, but can default construct it, because dummy_cancellation_token may never cancelled state
 		dummy_cancellation_token(const dummy_cancellation_token&) : cancellation_token() { }
-		dummy_cancellation_token& operator = (const dummy_cancellation_token&) = delete;
+		dummy_cancellation_token& operator =(const dummy_cancellation_token&) = delete;
 		~dummy_cancellation_token() = default;
 
 	protected:
@@ -140,31 +140,30 @@ namespace rethread
 	};
 
 
-	class cancellation_token_atomic : public cancellation_token
+	class standalone_cancellation_token : public cancellation_token
 	{
-		mutable std::mutex                         _mutex;
-		mutable std::condition_variable            _cv;
-		mutable bool                               _cancelDone{false};
+		mutable std::mutex              _mutex;
+		mutable std::condition_variable _cv;
+		bool                            _cancelled{false};
+		bool                            _cancelDone{false};
 
 	public:
-		cancellation_token_atomic() = default;
-		cancellation_token_atomic(const cancellation_token_atomic&) = delete;
-		cancellation_token_atomic& operator = (const cancellation_token_atomic&) = delete;
-		~cancellation_token_atomic() = default;
+		standalone_cancellation_token() = default;
+		standalone_cancellation_token(const standalone_cancellation_token&) = delete;
+		standalone_cancellation_token& operator =(const standalone_cancellation_token&) = delete;
+		~standalone_cancellation_token() = default;
 
 		void cancel()
 		{
-			cancellation_handler* cancelHandler = nullptr;
-			{
-				std::unique_lock<std::mutex> l(_mutex);
-				if (_cancelled)
-					return;
+			std::unique_lock<std::mutex> l(_mutex);
+			if (_cancelled)
+				return;
 
-				_cancelled = true;
+			_cancelled = true;
+			l.unlock();
 
-				cancelHandler = _cancelHandler.exchange(HazardPointer());
-				RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
-			}
+			cancellation_handler* cancelHandler = _cancelHandler.exchange(HazardPointer());
+			RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
 
 			if (cancelHandler)
 			{
@@ -174,11 +173,9 @@ namespace rethread
 				RETHREAD_ANNOTATE_BEFORE(cancelHandler);
 			}
 
-			{
-				std::unique_lock<std::mutex> l(_mutex);
-				_cancelDone = true;
-				_cv.notify_all();
-			}
+			l.lock();
+			_cancelDone = true;
+			_cv.notify_all();
 		}
 
 		void reset()
@@ -193,7 +190,7 @@ namespace rethread
 		void do_sleep_for(const std::chrono::nanoseconds& duration) const override
 		{
 			std::unique_lock<std::mutex> l(_mutex);
-			if (is_cancelled())
+			if (_cancelled)
 				return;
 
 			_cv.wait_for(l, duration);
@@ -205,10 +202,8 @@ namespace rethread
 				return;
 
 			std::unique_lock<std::mutex> l(_mutex);
-			_cancelHandler = nullptr;
-
-			if (!_cancelled)
-				return;
+			RETHREAD_ASSERT(_cancelled, "Wasn't cancelled!");
+			RETHREAD_ASSERT(_cancelHandler.load() == HazardPointer(), "Wrong _cancelHandler");
 
 			while (!_cancelDone)
 				_cv.wait(l);
@@ -219,6 +214,162 @@ namespace rethread
 			handler.reset();
 		}
 	};
+
+
+	class cancellation_token_source;
+
+
+	class sourced_cancellation_token : public cancellation_token, public detail::intrusive_list_node
+	{
+		cancellation_token_source& _source;
+
+	public:
+		sourced_cancellation_token(cancellation_token_source& source);
+		sourced_cancellation_token(const sourced_cancellation_token&) = delete;
+		sourced_cancellation_token& operator =(const sourced_cancellation_token&) = delete;
+		~sourced_cancellation_token();
+
+	protected:
+		void do_sleep_for(const std::chrono::nanoseconds& duration) const override;
+		void unregister_cancellation_handler(cancellation_handler& handler) const override;
+
+	private:
+		std::condition_variable& get_cv() const;
+		std::mutex& get_mutex() const;
+
+		void do_cancel();
+
+		friend class cancellation_token_source;
+	};
+
+
+	class cancellation_token_source
+	{
+		using tokens_intrusive_list = detail::intrusive_list<sourced_cancellation_token>;
+
+		mutable std::mutex              _mutex;
+		mutable std::condition_variable _cv;
+		bool                            _cancelled{false};
+		bool                            _cancelDone{false};
+		tokens_intrusive_list           _tokens;
+		std::mutex                      _tokens_mutex;
+
+	public:
+		cancellation_token_source() = default;
+		cancellation_token_source(const cancellation_token_source&) = delete;
+		cancellation_token_source& operator =(const cancellation_token_source&) = delete;
+		~cancellation_token_source() = default;
+
+		void cancel()
+		{
+			std::unique_lock<std::mutex> l(_mutex);
+			if (_cancelled)
+				return;
+
+			_cancelled = true;
+			l.unlock();
+
+			{
+				std::unique_lock<std::mutex> l(_tokens_mutex);
+				std::for_each(_tokens.begin(), _tokens.end(), std::bind(&sourced_cancellation_token::do_cancel, std::placeholders::_1));
+			}
+
+			l.lock();
+			_cancelDone = true;
+			_cv.notify_all();
+		}
+
+		// TODO: Decide whether reset is possible and necessary
+		//void reset()
+		//{
+		//	std::unique_lock<std::mutex> l(_mutex);
+		//	RETHREAD_ASSERT((_cancelHandler.load() || _cancelHandler == HazardPointer()) && (_cancelled == _cancelDone), "Cancellation token is in use!");
+		//	_cancelled = false;
+		//	_cancelDone = false;
+		//}
+
+	private:
+		std::condition_variable& get_cv()
+		{ return _cv; }
+
+		std::mutex& get_mutex()
+		{ return _mutex; }
+
+		void register_token(sourced_cancellation_token& token)
+		{
+			std::unique_lock<std::mutex> l(_tokens_mutex);
+			_tokens.push_back(token);
+		}
+
+		void unregister_token(sourced_cancellation_token& token)
+		{
+			std::unique_lock<std::mutex> l(_tokens_mutex);
+			_tokens.erase(token);
+		}
+
+		friend class sourced_cancellation_token;
+	};
+
+
+	sourced_cancellation_token::sourced_cancellation_token(cancellation_token_source& source) : _source(source)
+	{ _source.register_token(*this); }
+
+
+	sourced_cancellation_token::~sourced_cancellation_token()
+	{ _source.unregister_token(*this); }
+
+
+
+	std::condition_variable& sourced_cancellation_token::get_cv() const
+	{ return _source.get_cv(); }
+
+
+	std::mutex& sourced_cancellation_token::get_mutex() const
+	{ return _source.get_mutex(); }
+
+
+	void sourced_cancellation_token::do_sleep_for(const std::chrono::nanoseconds& duration) const override
+	{
+		std::unique_lock<std::mutex> l(get_mutex());
+		if (_source._cancelled)
+			return;
+
+		get_cv().wait_for(l, duration);
+	}
+
+
+	void sourced_cancellation_token::unregister_cancellation_handler(cancellation_handler& handler) const override
+	{
+		if (try_unregister_cancellation_handler(handler))
+			return;
+
+		std::unique_lock<std::mutex> l(get_mutex());
+		RETHREAD_ASSERT(_source._cancelled, "Wasn't cancelled!");
+		RETHREAD_ASSERT(_cancelHandler == HazardPointer(), "Wrong _cancelHandler");
+
+		while (!_source._cancelDone)
+			get_cv().wait(l);
+
+		RETHREAD_ANNOTATE_AFTER(std::addressof(handler));
+		RETHREAD_ANNOTATE_FORGET(std::addressof(handler));
+		l.unlock();
+		handler.reset();
+	}
+
+
+	void sourced_cancellation_token::do_cancel()
+	{
+		cancellation_handler* cancelHandler = _cancelHandler.exchange(HazardPointer());
+		RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
+
+		if (cancelHandler)
+		{
+			RETHREAD_ANNOTATE_AFTER(std::addressof(_cancelHandler));
+			RETHREAD_ANNOTATE_FORGET(std::addressof(_cancelHandler));
+			cancelHandler->cancel();
+			RETHREAD_ANNOTATE_BEFORE(cancelHandler);
+		}
+	}
 
 
 	class cancellation_guard_base
@@ -243,7 +394,7 @@ namespace rethread
 
 	public:
 		cancellation_guard(const cancellation_guard&) = delete;
-		cancellation_guard& operator = (const cancellation_guard&) = delete;
+		cancellation_guard& operator =(const cancellation_guard&) = delete;
 
 		cancellation_guard() :
 			_token(nullptr), _handler(nullptr)
