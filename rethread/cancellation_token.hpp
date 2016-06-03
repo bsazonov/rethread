@@ -61,11 +61,17 @@ namespace rethread
 		{ return !is_cancelled(); }
 
 	protected:
+		virtual void do_sleep_for(const std::chrono::nanoseconds& duration) const = 0;
+
+		/// @pre Handler is registered
+		/// @post Handler is not registered
+		/// @note Will invoke cancellation_handler::reset() if necessary
+		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
+
+	protected:
 		template<typename Rep, typename Period>
 		void sleep_for(const std::chrono::duration<Rep, Period>& duration) const
 		{ do_sleep_for(std::chrono::duration_cast<std::chrono::nanoseconds>(duration)); }
-
-		virtual void do_sleep_for(const std::chrono::nanoseconds& duration) const = 0;
 
 		/// @pre Handler is not registered
 		/// @returns Whether handler was registered. If token was cancelled before registration, this method skips registration and returns false
@@ -93,11 +99,6 @@ namespace rethread
 			_cancelHandler.exchange(h); // restore value
 			return false;
 		}
-
-		/// @pre Handler is registered
-		/// @post Handler is not registered
-		/// @note Will invoke cancellation_handler::reset() if necessary
-		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
 	protected:
 		cancellation_token() = default;
