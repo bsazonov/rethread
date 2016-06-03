@@ -21,13 +21,24 @@
 #define RETHREAD_UNLIKELY(Condition_) (Condition_)
 #endif
 
+#define RETHREAD_MACRO_BEGIN do {
+#if defined (_MSC_VER) && _MSC_VER < 1900
+#define RETHREAD_MACRO_END \
+        __pragma(warning(push)) \
+        __pragma(warning(disable:4127)) \
+        } while(false) \
+        __pragma(warning(pop))
+#else
+#define RETHREAD_MACRO_END } while(false)
+#endif
+
 #define RETHREAD_THROW(Exception_) ::rethread::detail::throw_exception(Exception_, __FILE__, __LINE__)
-#define RETHREAD_CHECK(Condition_, Exception_) do { if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); } while (false)
+#define RETHREAD_CHECK(Condition_, Exception_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); RETHREAD_MACRO_END
 
 #ifndef RETHREAD_SUPPRESS_CHECKS
-#define RETHREAD_ASSERT(Condition_, Message_) do { if (RETHREAD_UNLIKELY(!(Condition_))) std::terminate(); } while (false)
+#define RETHREAD_ASSERT(Condition_, Message_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) std::terminate(); RETHREAD_MACRO_END
 #else
-#define RETHREAD_ASSERT(Condition_, Message_) do { } while (false)
+#define RETHREAD_ASSERT(Condition_, Message_) RETHREAD_MACRO_BEGIN RETHREAD_MACRO_END
 #endif
 
 #ifdef RETHREAD_USE_HELGRIND_ANNOTATIONS
