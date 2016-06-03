@@ -35,6 +35,9 @@ namespace rethread
 			cv_cancellation_handler(Condition& cv, Lock& lock) : _cv(cv), _lock(lock)
 			{ }
 
+			cv_cancellation_handler(const cv_cancellation_handler&) = delete;
+			cv_cancellation_handler& operator = (const cv_cancellation_handler&) = delete;
+
 			void cancel() override
 			{
 				// Canceller thread can get stuck here if the waiting already ended.
