@@ -350,9 +350,9 @@ namespace rethread
 			l.unlock();
 
 			{
-				std::unique_lock<std::mutex> l(_data->_tokens_mutex);
+				std::unique_lock<std::mutex> l2(_data->_tokens_mutex);
 				for (sourced_cancellation_token& token : _data->_tokens)
-					token.cancel_impl(l);
+					token.cancel_impl(l2);
 			}
 
 			l.lock();
