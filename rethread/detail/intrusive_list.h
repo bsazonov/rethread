@@ -11,6 +11,7 @@
 // WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <rethread/detail/iterator_base.h>
+#include <rethread/detail/utility.hpp>
 
 #include <cstddef>
 #include <iterator>
@@ -40,9 +41,15 @@ namespace detail
 		intrusive_list_node* _prev;
 		intrusive_list_node* _next;
 
-	public:
+	protected:
 		intrusive_list_node() : _prev(this), _next(this)
 		{ }
+
+		~intrusive_list_node()
+		{ RETHREAD_ASSERT(!is_linked(), "Node is linked!"); }
+
+		intrusive_list_node(const intrusive_list_node&) = delete;
+		intrusive_list_node& operator =(const intrusive_list_node&) = delete;
 
 	private:
 		void insert_before(intrusive_list_node& other)
