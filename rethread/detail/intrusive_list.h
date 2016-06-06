@@ -62,7 +62,7 @@ namespace detail
 		}
 
 		bool is_linked() const
-		{ return _next == this && _prev == this; }
+		{ return _next != this || _prev != this; }
 	};
 
 
@@ -115,7 +115,7 @@ namespace detail
 		{ return const_iterator(&_root); }
 
 		bool empty() const
-		{ return _root.is_linked(); }
+		{ return !_root.is_linked(); }
 
 		size_t size() const
 		{ return std::distance(begin(), end()); }
