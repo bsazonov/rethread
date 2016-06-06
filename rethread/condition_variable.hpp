@@ -10,8 +10,9 @@
 // IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 // WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#include <rethread/detail/utility.hpp>
 #include <rethread/cancellation_token.hpp>
+#include <rethread/detail/reverse_lock.hpp>
+#include <rethread/detail/utility.hpp>
 
 #include <chrono>
 #include <condition_variable>
@@ -50,23 +51,6 @@ namespace rethread
 
 			lock_type& get_lock() const
 			{ return _lock; }
-		};
-
-
-		template <typename Lockable_>
-		class reverse_lock
-		{
-			Lockable_& _lockable;
-
-		public:
-			reverse_lock(Lockable_& l) : _lockable(l)
-			{ _lockable.unlock(); }
-
-			reverse_lock(const reverse_lock&) = delete;
-			reverse_lock& operator = (const reverse_lock&) = delete;
-
-			~reverse_lock()
-			{ _lockable.lock(); }
 		};
 
 
