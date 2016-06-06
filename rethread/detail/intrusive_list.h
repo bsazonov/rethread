@@ -102,11 +102,11 @@ namespace detail
 		intrusive_list_node _root;
 
 	public:
-		intrusive_list_iterator begin()
-		{ return intrusive_list_iterator(_root._next); }
+		iterator begin()
+		{ return iterator(_root._next); }
 
-		intrusive_list_iterator end()
-		{ return intrusive_list_iterator(&_root); }
+		iterator end()
+		{ return iterator(&_root); }
 
 		const_iterator begin() const
 		{ return const_iterator(_root._next); }
