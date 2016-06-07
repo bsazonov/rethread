@@ -17,6 +17,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <utility>
 
 namespace rethread
 {
@@ -98,27 +99,27 @@ namespace rethread
 		cv.wait(lock);
 	}
 
-	template<typename Condition, typename Lock, typename Rep, typename Period>
-	std::cv_status wait_for(Condition& cv, Lock& lock, const std::chrono::duration<Rep, Period>& duration, const cancellation_token& token)
+	template<typename Condition, typename Lock, typename Duration>
+	std::cv_status wait_for(Condition& cv, Lock& lock, Duration&& duration, const cancellation_token& token)
 	{
 		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
 		handler_type handler(cv, lock);
 		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
 			return std::cv_status::no_timeout;
-		return cv.wait_for(lock, duration);
+		return cv.wait_for(lock, std::forward(duration));
 	}
 
 
-	template<typename Condition, typename Lock, class Clock, class Duration>
-	std::cv_status wait_until(Condition& cv, Lock& lock, const std::chrono::time_point<Clock, Duration>& time_point, const cancellation_token& token)
+	template<typename Condition, typename Lock, typename TimePoint>
+	std::cv_status wait_until(Condition& cv, Lock& lock, TimePoint&& time_point, const cancellation_token& token)
 	{
 		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
 		handler_type handler(cv, lock);
 		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
 			return std::cv_status::no_timeout;
-		return cv.wait_until(lock, time_point);
+		return cv.wait_until(lock, std::forward(time_point));
 	}
 
 }
