@@ -38,7 +38,7 @@ namespace rethread
 
 		template<class Function, class... Args>
 		explicit thread(Function&& f, Args&&... args) : _token(new standalone_cancellation_token())
-		{ _impl = std::thread(std::forward<Function>(f), std::ref(*_token), std::forward<Args>(args)...); }
+		{ _impl = std::thread(std::forward<Function>(f), std::forward<Args>(args)..., std::cref(*_token)); }
 
 		~thread()
 		{
