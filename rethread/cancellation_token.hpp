@@ -83,6 +83,7 @@ namespace rethread
 			if (RETHREAD_UNLIKELY(h != nullptr))
 			{
 				RETHREAD_ASSERT(h == HazardPointer(), "Cancellation handler already registered!");
+				_cancel_handler = HazardPointer(); // restore value
 				return false;
 			}
 			return true;
@@ -97,7 +98,7 @@ namespace rethread
 				return true;
 
 			RETHREAD_ASSERT(h == HazardPointer(), "Another token was registered!");
-			_cancel_handler.exchange(h); // restore value
+			_cancel_handler = HazardPointer(); // restore value
 			return false;
 		}
 
