@@ -41,10 +41,7 @@ namespace rethread
 		{ _impl = std::thread(std::forward<Function>(f), std::forward<Args>(args)..., std::cref(*_token)); }
 
 		~thread()
-		{
-			if (joinable())
-				reset();
-		}
+		{ reset(); }
 
 		thread& operator = (thread&& other) RETHREAD_NOEXCEPT
 		{
@@ -76,6 +73,9 @@ namespace rethread
 
 		void reset()
 		{
+			if (!joinable())
+				return;
+
 			_token->cancel();
 			_impl.join();
 			*this = rethread::thread();
