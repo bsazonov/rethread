@@ -69,6 +69,10 @@ namespace rethread
 		/// @note Will invoke cancellation_handler::reset() if necessary
 		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
+		/// @brief Invoked for derived classes that pass not_initialized_invalid_pointer() as initial value for handler
+		virtual bool do_initialize() const
+		{ std::terminate(); }
+
 	protected:
 		template <typename Rep, typename Period>
 		void sleep_for(const std::chrono::duration<Rep, Period>& duration) const
@@ -80,13 +84,14 @@ namespace rethread
 		{
 			cancellation_handler* h = _cancel_handler.exchange(&handler, std::memory_order_release);
 			RETHREAD_ANNOTATE_BEFORE(std::addressof(_cancel_handler));
-			if (RETHREAD_UNLIKELY(h != nullptr))
-			{
-				RETHREAD_ASSERT(h == cancelled_invalid_pointer(), "Cancellation handler already registered!");
-				_cancel_handler = cancelled_invalid_pointer(); // restore value
-				return false;
-			}
-			return true;
+			if (RETHREAD_LIKELY(h == nullptr))
+				return true;
+
+			if (h == not_initialized_invalid_pointer())
+				return do_initialize();
+			RETHREAD_ASSERT(h == cancelled_invalid_pointer(), "Cancellation handler already registered!");
+			_cancel_handler = cancelled_invalid_pointer(); // restore value
+			return false;
 		}
 
 		/// @pre Handler is registered
@@ -104,6 +109,10 @@ namespace rethread
 
 	protected:
 		cancellation_token() = default;
+
+		cancellation_token(cancellation_handler* handler) : _cancel_handler(handler)
+		{ }
+
 		cancellation_token(const cancellation_token&) = delete;
 		cancellation_token& operator =(const cancellation_token&) = delete;
 		~cancellation_token() = default;
@@ -111,6 +120,9 @@ namespace rethread
 		// Dirty trick to optimize register/unregister down to one atomic exchange
 		static cancellation_handler* cancelled_invalid_pointer()
 		{ return reinterpret_cast<cancellation_handler*>(1); }
+
+		static cancellation_handler* not_initialized_invalid_pointer()
+		{ return reinterpret_cast<cancellation_handler*>(2); }
 
 	private:
 		friend class cancellation_guard_base;
