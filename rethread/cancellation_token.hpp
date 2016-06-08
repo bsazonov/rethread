@@ -56,7 +56,7 @@ namespace rethread
 
 	public:
 		bool is_cancelled() const
-		{ return _cancel_handler.load(std::memory_order_relaxed) == HazardPointer(); }
+		{ return _cancel_handler.load(std::memory_order_relaxed) == cancelled_invalid_pointer(); }
 
 		explicit operator bool() const
 		{ return !is_cancelled(); }
@@ -70,7 +70,7 @@ namespace rethread
 		virtual void unregister_cancellation_handler(cancellation_handler& handler) const = 0;
 
 	protected:
-		template<typename Rep, typename Period>
+		template <typename Rep, typename Period>
 		void sleep_for(const std::chrono::duration<Rep, Period>& duration) const
 		{ do_sleep_for(std::chrono::duration_cast<std::chrono::nanoseconds>(duration)); }
 
@@ -82,8 +82,8 @@ namespace rethread
 			RETHREAD_ANNOTATE_BEFORE(std::addressof(_cancel_handler));
 			if (RETHREAD_UNLIKELY(h != nullptr))
 			{
-				RETHREAD_ASSERT(h == HazardPointer(), "Cancellation handler already registered!");
-				_cancel_handler = HazardPointer(); // restore value
+				RETHREAD_ASSERT(h == cancelled_invalid_pointer(), "Cancellation handler already registered!");
+				_cancel_handler = cancelled_invalid_pointer(); // restore value
 				return false;
 			}
 			return true;
@@ -97,8 +97,8 @@ namespace rethread
 			if (RETHREAD_LIKELY(h == &handler))
 				return true;
 
-			RETHREAD_ASSERT(h == HazardPointer(), "Another token was registered!");
-			_cancel_handler = HazardPointer(); // restore value
+			RETHREAD_ASSERT(h == cancelled_invalid_pointer(), "Another token was registered!");
+			_cancel_handler = cancelled_invalid_pointer(); // restore value
 			return false;
 		}
 
@@ -109,7 +109,7 @@ namespace rethread
 		~cancellation_token() = default;
 
 		// Dirty trick to optimize register/unregister down to one atomic exchange
-		static cancellation_handler* HazardPointer()
+		static cancellation_handler* cancelled_invalid_pointer()
 		{ return reinterpret_cast<cancellation_handler*>(1); }
 
 	private:
@@ -164,8 +164,8 @@ namespace rethread
 			_cancelled = true;
 			l.unlock();
 
-			cancellation_handler* cancelHandler = _cancel_handler.exchange(HazardPointer());
-			RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
+			cancellation_handler* cancelHandler = _cancel_handler.exchange(cancelled_invalid_pointer());
+			RETHREAD_ASSERT(cancelHandler != cancelled_invalid_pointer(), "_cancelled should protect from double-cancelling");
 
 			if (cancelHandler)
 			{
@@ -183,7 +183,7 @@ namespace rethread
 		void reset()
 		{
 			std::unique_lock<std::mutex> l(_mutex);
-			RETHREAD_ASSERT((_cancel_handler.load() || _cancel_handler == HazardPointer()) && (_cancelled == _cancel_done), "Cancellation token is in use!");
+			RETHREAD_ASSERT((_cancel_handler.load() || _cancel_handler == cancelled_invalid_pointer()) && (_cancelled == _cancel_done), "Cancellation token is in use!");
 			_cancelled = false;
 			_cancel_done = false;
 			_cancel_handler = nullptr;
@@ -206,7 +206,7 @@ namespace rethread
 
 			std::unique_lock<std::mutex> l(_mutex);
 			RETHREAD_ASSERT(_cancelled, "Wasn't cancelled!");
-			RETHREAD_ASSERT(_cancel_handler.load() == HazardPointer(), "Wrong _cancel_handler");
+			RETHREAD_ASSERT(_cancel_handler.load() == cancelled_invalid_pointer(), "Wrong _cancel_handler");
 
 			while (!_cancel_done)
 				_cv.wait(l);
@@ -254,7 +254,7 @@ namespace rethread
 
 		~sourced_cancellation_token()
 		{
-			RETHREAD_ASSERT(_cancel_handler.load() == nullptr || _cancel_handler == HazardPointer(), "Cancellation token is still in use!");
+			RETHREAD_ASSERT(_cancel_handler.load() == nullptr || _cancel_handler == cancelled_invalid_pointer(), "Cancellation token is still in use!");
 			do_unregister();
 		}
 
@@ -275,7 +275,7 @@ namespace rethread
 
 			std::unique_lock<std::mutex> l(_data->_mutex);
 			RETHREAD_ASSERT(_data->_cancelled, "Wasn't cancelled!");
-			RETHREAD_ASSERT(_cancel_handler == HazardPointer(), "Wrong _cancel_handler");
+			RETHREAD_ASSERT(_cancel_handler == cancelled_invalid_pointer(), "Wrong _cancel_handler");
 
 			while (!_data->_cancel_done)
 				_data->_cv.wait(l);
@@ -304,8 +304,8 @@ namespace rethread
 
 		void cancel_impl(std::unique_lock<std::mutex>& l)
 		{
-			cancellation_handler* cancelHandler = _cancel_handler.exchange(HazardPointer());
-			RETHREAD_ASSERT(cancelHandler != HazardPointer(), "_cancelled should protect from double-cancelling");
+			cancellation_handler* cancelHandler = _cancel_handler.exchange(cancelled_invalid_pointer());
+			RETHREAD_ASSERT(cancelHandler != cancelled_invalid_pointer(), "_cancelled should protect from double-cancelling");
 
 			if (!cancelHandler)
 				return;
