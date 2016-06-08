@@ -239,7 +239,7 @@ namespace rethread
 	class cancellation_token_source;
 
 
-	class sourced_cancellation_token : public cancellation_token, public detail::intrusive_list_node
+	class sourced_cancellation_token : public cancellation_token, public detail::intrusive_list_node<false>
 	{
 		using data_ptr = std::shared_ptr<detail::cancellation_source_data<sourced_cancellation_token>>;
 

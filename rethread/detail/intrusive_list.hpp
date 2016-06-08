@@ -25,21 +25,25 @@ namespace detail
 	class intrusive_list;
 
 
-	template <typename T_>
+	template <typename T_, bool IsMutable_>
 	class intrusive_list_iterator;
 
 
+	template <bool IsMutable_>
 	class intrusive_list_node
 	{
 		template <typename T_>
 		friend class intrusive_list;
 
-		template <typename T_>
+		template <typename T_, bool>
 		friend class intrusive_list_iterator;
 
+		using node_type = intrusive_list_node<IsMutable_>;
+		using node_ptr = typename std::conditional<IsMutable_, const node_type*, node_type*>::type;
+
 	private:
-		intrusive_list_node* _prev;
-		intrusive_list_node* _next;
+		mutable node_ptr _prev;
+		mutable node_ptr _next;
 
 	protected:
 		intrusive_list_node() : _prev(this), _next(this)
@@ -52,7 +56,7 @@ namespace detail
 		intrusive_list_node& operator =(const intrusive_list_node&) = delete;
 
 	private:
-		void insert_before(intrusive_list_node& other)
+		void insert_before(node_type& other)
 		{
 			_prev = other._prev;
 			_next = &other;
@@ -68,24 +72,43 @@ namespace detail
 			_prev = _next = this;
 		}
 
+		void insert_before(node_type& other) const
+		{
+			_prev = other._prev;
+			_next = &other;
+
+			_next->_prev = this;
+			_prev->_next = this;
+		}
+
+		void unlink() const
+		{
+			_next->_prev = _prev;
+			_prev->_next = _next;
+			_prev = _next = this;
+		}
+
 		bool is_linked() const
 		{ return _next != this || _prev != this; }
 	};
 
 
-	template <typename T_>
-	class intrusive_list_iterator : public iterator_base<intrusive_list_iterator<T_>, std::bidirectional_iterator_tag, T_>
+	template <typename T_, bool IsMutable_>
+	class intrusive_list_iterator : public iterator_base<intrusive_list_iterator<T_, IsMutable_>, std::bidirectional_iterator_tag, T_>
 	{
-		intrusive_list_node* _node;
+		using node_type = intrusive_list_node<IsMutable_>;
+		using node_ptr = typename std::conditional<IsMutable_, const node_type*, node_type*>::type;
+
+		node_ptr _node;
 
 	public:
-		explicit intrusive_list_iterator(intrusive_list_node* node = nullptr) : _node(node)
+		explicit intrusive_list_iterator(node_ptr node = nullptr) : _node(node)
 		{ }
 
 		T_& dereference() const
 		{ return static_cast<T_&>(*_node); }
 
-		bool equal(intrusive_list_iterator<T_> other) const
+		bool equal(intrusive_list_iterator<T_, IsMutable_> other) const
 		{ return _node == other._node; }
 
 		void increment()
@@ -99,14 +122,15 @@ namespace detail
 	template <typename T_>
 	class intrusive_list
 	{
-		static_assert(std::is_base_of<intrusive_list_node, T_>::value, "intrusive_list_node should be a base of T_");
+		static RETHREAD_CONSTEXPR bool IsMutable = std::is_const<T_>::value;
+		static_assert(std::is_base_of<intrusive_list_node<IsMutable>, T_>::value, "intrusive_list_node should be a base of T_");
 
 	public:
-		using iterator = intrusive_list_iterator<T_>;
-		using const_iterator = intrusive_list_iterator<const T_>;
+		using iterator = intrusive_list_iterator<T_, IsMutable>;
+		using const_iterator = intrusive_list_iterator<const T_, IsMutable>;
 
 	private:
-		intrusive_list_node _root;
+		intrusive_list_node<IsMutable> _root;
 
 	public:
 		iterator begin()
