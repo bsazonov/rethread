@@ -236,13 +236,12 @@ namespace rethread
 		template <typename TokenType_>
 		struct cancellation_source_data
 		{
-			using tokens_intrusive_list = detail::intrusive_list<TokenType_>;
+			using tokens_intrusive_list = detail::intrusive_list<const TokenType_>;
 
 			std::mutex              _mutex;
 			std::condition_variable _cv;
 			bool                    _cancelled{false};
 			bool                    _cancel_done{false};
-			std::mutex              _tokens_mutex;
 			tokens_intrusive_list   _tokens;
 		};
 	}
@@ -251,23 +250,43 @@ namespace rethread
 	class cancellation_token_source;
 
 
-	class sourced_cancellation_token : public cancellation_token, public detail::intrusive_list_node<false>
+	class sourced_cancellation_token : public cancellation_token, public detail::intrusive_list_node<true>
 	{
 		using data_ptr = std::shared_ptr<detail::cancellation_source_data<sourced_cancellation_token>>;
 
-		data_ptr _data;
+		data_ptr     _data;
+		mutable bool _registered{false};
 
 	public:
 		sourced_cancellation_token(const sourced_cancellation_token& other) :
-			cancellation_token(), intrusive_list_node(), _data(other._data)
-		{ do_register(); }
+			cancellation_token(not_initialized_invalid_pointer()), intrusive_list_node(), _data(other._data)
+		{ }
+
+		sourced_cancellation_token(sourced_cancellation_token&& other) :
+			cancellation_token(not_initialized_invalid_pointer()), intrusive_list_node(), _data(std::move(other._data))
+		{
+			if (other._registered)
+			{
+				std::unique_lock<std::mutex> l(_data->_mutex);
+				_data->_tokens.erase(other);
+				other._registered = false;
+			}
+		}
 
 		sourced_cancellation_token& operator =(const sourced_cancellation_token&) = delete;
 
 		~sourced_cancellation_token()
 		{
-			RETHREAD_ASSERT(_cancel_handler.load() == nullptr || _cancel_handler == cancelled_invalid_pointer(), "Cancellation token is still in use!");
-			do_unregister();
+			RETHREAD_ASSERT(_cancel_handler.load() == nullptr
+			                || _cancel_handler == not_initialized_invalid_pointer()
+			                || _cancel_handler == cancelled_invalid_pointer(), "Cancellation token is still in use!");
+			if (_registered)
+			{
+				RETHREAD_ASSERT(_data, "Shouldn't be null!");
+
+				std::unique_lock<std::mutex> l(_data->_mutex);
+				_data->_tokens.erase(*this);
+			}
 		}
 
 	protected:
@@ -298,25 +317,28 @@ namespace rethread
 			handler.reset();
 		}
 
-	private:
-		sourced_cancellation_token(const data_ptr& data) : _data(data)
-		{ do_register(); }
-
-		void do_register()
+		virtual bool do_initialize() const
 		{
-			std::unique_lock<std::mutex> l(_data->_tokens_mutex);
+			RETHREAD_ASSERT(!_registered, "This token is already registered in source!");
+			std::unique_lock<std::mutex> l(_data->_mutex);
 			_data->_tokens.push_back(*this);
+			_registered = true;
+			if (!_data->_cancelled)
+				return true;
+
+			_cancel_handler = cancelled_invalid_pointer();
+			return false;
 		}
 
-		void do_unregister()
-		{
-			std::unique_lock<std::mutex> l(_data->_tokens_mutex);
-			_data->_tokens.erase(*this);
-		}
+	private:
+		sourced_cancellation_token(const data_ptr& data) :
+			cancellation_token(not_initialized_invalid_pointer()), _data(data)
+		{ }
 
-		void cancel_impl(std::unique_lock<std::mutex>& l)
+		void cancel_impl(std::unique_lock<std::mutex>& l) const
 		{
 			cancellation_handler* cancelHandler = _cancel_handler.exchange(cancelled_invalid_pointer());
+			RETHREAD_ASSERT(cancelHandler != not_initialized_invalid_pointer(), "Token can't be not initialized at this point!");
 			RETHREAD_ASSERT(cancelHandler != cancelled_invalid_pointer(), "_cancelled should protect from double-cancelling");
 
 			if (!cancelHandler)
@@ -360,15 +382,10 @@ namespace rethread
 				return;
 
 			_data->_cancelled = true;
-			l.unlock();
 
-			{
-				std::unique_lock<std::mutex> l2(_data->_tokens_mutex);
-				for (sourced_cancellation_token& token : _data->_tokens)
-					token.cancel_impl(l2);
-			}
+			for (const sourced_cancellation_token& token : _data->_tokens)
+				token.cancel_impl(l); // cancel_impl will unlock mutex before calling cancel()
 
-			l.lock();
 			_data->_cancel_done = true;
 			_data->_cv.notify_all();
 		}
