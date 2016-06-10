@@ -447,6 +447,47 @@ namespace rethread
 		bool is_cancelled() const
 		{ return !_token; }
 	};
+
+
+	class chain_cancellation_tokens
+	{
+		class impl : public cancellation_handler
+		{
+			// C++ standard doesn't have variant and implementing one for this single case seems as an overkill
+			standalone_cancellation_token* _standaloneTarget;
+			cancellation_token_source*     _sourceTarget;
+
+		public:
+			impl(standalone_cancellation_token& target) : _standaloneTarget(&target), _sourceTarget(nullptr)
+			{ }
+
+			impl(cancellation_token_source& target) : _standaloneTarget(nullptr), _sourceTarget(&target)
+			{ }
+
+			virtual void cancel() override
+			{
+				if (_standaloneTarget)
+					_standaloneTarget->cancel();
+				else if (_sourceTarget)
+					_sourceTarget->cancel();
+				else
+					RETHREAD_ASSERT(false, "Both targets are null!");
+			}
+		};
+
+	private:
+		impl               _impl;
+		cancellation_guard _guard;
+
+	public:
+		chain_cancellation_tokens(const cancellation_token& source, standalone_cancellation_token& destination) :
+			_impl(destination), _guard(source, _impl)
+		{ }
+
+		chain_cancellation_tokens(const cancellation_token& source, cancellation_token_source& destination) :
+			_impl(destination), _guard(source, _impl)
+		{ }
+	};
 }
 
 #endif
