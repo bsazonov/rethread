@@ -35,8 +35,10 @@
 #define RETHREAD_THROW(Exception_) ::rethread::detail::throw_exception(Exception_, __FILE__, __LINE__)
 #define RETHREAD_CHECK(Condition_, Exception_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); RETHREAD_MACRO_END
 
+#define RETHREAD_FATAL(Message_) RETHREAD_MACRO_BEGIN std::terminate(); RETHREAD_MACRO_END
+
 #ifndef RETHREAD_SUPPRESS_CHECKS
-#define RETHREAD_ASSERT(Condition_, Message_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) std::terminate(); RETHREAD_MACRO_END
+#define RETHREAD_ASSERT(Condition_, Message_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_FATAL(Message_); RETHREAD_MACRO_END
 #else
 #define RETHREAD_ASSERT(Condition_, Message_) RETHREAD_MACRO_BEGIN RETHREAD_MACRO_END
 #endif
