@@ -471,7 +471,7 @@ namespace rethread
 				else if (_sourceTarget)
 					_sourceTarget->cancel();
 				else
-					RETHREAD_ASSERT(false, "Both targets are null!");
+					RETHREAD_FATAL("Both targets are null!");
 			}
 		};
 
