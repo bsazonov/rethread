@@ -17,7 +17,7 @@ C++11 threads has one inherent problem - they aren't truly RAII-compliant. C++11
 
 What are the consequences? User have to be cautious about destroying threads:
 
-```
+```cpp
 void dangerous_foo()
 {
   std::thread t([] { do_work(); });
@@ -43,7 +43,7 @@ To fix it, rethread implements RAII-compliant thread wrapper. However, implement
 
 ###The bigger problem
 Simply adding join to the thread dtor doesn't make thread any better:
-```
+```cpp
 thread_wrapper::~thread_wrapper()
 {
   if (joinable())
@@ -51,7 +51,7 @@ thread_wrapper::~thread_wrapper()
 }
 ```
 Why? Well, let's consider behavior of such a thread in the following code:
-```
+```cpp
 void use_thread()
 {
   std::atomic<bool> alive{true};
@@ -70,7 +70,7 @@ There are different approaches towards answering this question, such as pthread_
 
 ###Cancellation token
 Typical usage:
-```
+```cpp
 void do_work(const cancellation_token& token)
 {
   std::unique_lock lock(_mutex);
@@ -88,20 +88,20 @@ void do_work(const cancellation_token& token)
 ```
 This example uses two main cancellation_token features:
 #####Cancellation state checking
-```
+```cpp
 while (token)
   \\ ...
 ```
 Converting cancellation_token to boolean is equivalent to the result of `!token.is_cancelled()`. It equals to `true` until token enters cancelled state. If some other thread cancels the token, it will return `false`, thus finishing the loop.
 #####Interrupting blocking calls
-```
+```cpp
 rethread::wait(_condition, lock, token);
 ```
 Cancellation token implements generic way to cancel arbitrary blocking calls. Out of the box rethread provides cancellable implementations for `condition_variable::wait`, `this_thread::sleep`, and UNIX `poll`.
 
 ###RAII thread
 Using cancellation_token, rethread implements RAII-compliant `std::thread` wrapper: `rethread::thread`. It stores `cancellation_token` object and passes it to the invoked function, thus allowing graceful cancellation from thread destructor. After cancelling the token, `rethread::thread` joins the underlying thread.
-```
+```cpp
 void use_thread()
 {
   rethread::thread t([] (const cancellation_token& token) { while(token) do_work(); });
