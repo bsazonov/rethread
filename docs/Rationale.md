@@ -99,3 +99,4 @@ void use_thread()
   do_work2();
 }
 ```
+Cancellation token object is passed as the last parameter to thread func, so signature has to be changed appropriately.
