@@ -99,15 +99,27 @@ namespace rethread
 		cv.wait(lock);
 	}
 
-	template<typename Condition, typename Lock, typename Duration>
-	std::cv_status wait_for(Condition& cv, Lock& lock, Duration&& duration, const cancellation_token& token)
+
+	template<typename Condition, typename Lock, typename Predicate>
+	bool wait(Condition& cv, Lock& lock, const cancellation_token& token, Predicate predicate)
 	{
+		if (predicate()) // registering handler is not free, so it makes sense to check predicate
+			return true;
+
 		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
 		handler_type handler(cv, lock);
 		detail::cv_cancellation_guard<handler_type> guard(token, handler);
 		if (guard.is_cancelled())
-			return std::cv_status::no_timeout;
-		return cv.wait_for(lock, std::forward(duration));
+			return false;
+
+		cv.wait(lock);
+		while (!predicate())
+		{
+			if (!token)
+				return false;
+			cv.wait(lock);
+		}
+		return true;
 	}
 
 
@@ -121,6 +133,49 @@ namespace rethread
 			return std::cv_status::no_timeout;
 		return cv.wait_until(lock, std::forward(time_point));
 	}
+
+
+	template<typename Condition, typename Lock, typename TimePoint, typename Predicate>
+	bool wait_until(Condition& cv, Lock& lock, TimePoint&& time_point, const cancellation_token& token, Predicate predicate)
+	{
+		if (predicate()) // registering handler is not free, so it makes sense to check predicate
+			return true;
+
+		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
+		handler_type handler(cv, lock);
+		detail::cv_cancellation_guard<handler_type> guard(token, handler);
+		if (guard.is_cancelled())
+			return false;
+
+		if (cv.wait_until(lock, std::forward(time_point)) == std::cv_status::no_timeout)
+			return predicate();
+
+		while (!predicate())
+		{
+			if (!token)
+				return false;
+			if (cv.wait_until(lock, std::forward(time_point)) == std::cv_status::no_timeout)
+				return predicate();
+		}
+		return true;
+	}
+
+
+	template<typename Condition, typename Lock, typename Duration>
+	std::cv_status wait_for(Condition& cv, Lock& lock, Duration&& duration, const cancellation_token& token)
+	{
+		using handler_type = detail::cv_cancellation_handler<Condition, Lock>;
+		handler_type handler(cv, lock);
+		detail::cv_cancellation_guard<handler_type> guard(token, handler);
+		if (guard.is_cancelled())
+			return std::cv_status::no_timeout;
+		return cv.wait_for(lock, std::forward(duration));
+	}
+
+
+	template<typename Condition, typename Lock, typename Duration, typename Predicate>
+	bool wait_for(Condition& cv, Lock& lock, Duration&& duration, const cancellation_token& token, Predicate predicate)
+	{ return wait_until(cv, lock, std::chrono::steady_clock::now() + duration, token, std::move(predicate)); }
 
 }
 
