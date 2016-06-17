@@ -7,6 +7,7 @@ This tutorial is written for rethread without exceptions.
 * Pass it to other long or blocking functions
 
 If a blocking function doesn't support `cancellation_token`, there are two options:
+
 1. If the function blocks because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
 2. If the function blocks in some other call - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
 
