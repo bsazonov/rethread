@@ -142,7 +142,8 @@ namespace rethread
 		~dummy_cancellation_token() = default;
 
 	protected:
-		void do_sleep_for(const std::chrono::nanoseconds& duration) const override     { std::this_thread::sleep_for(duration); }
+		void do_sleep_for(const std::chrono::nanoseconds& duration) const override
+		{ std::this_thread::sleep_for(duration); }
 
 		// Just in case someone skips try_unregister_cancellation_handler and calls this directly
 		void unregister_cancellation_handler(cancellation_handler& h) const override
@@ -317,7 +318,7 @@ namespace rethread
 			handler.reset();
 		}
 
-		virtual bool do_initialize() const
+		bool do_initialize() const override
 		{
 			RETHREAD_ASSERT(!_registered, "This token is already registered in source!");
 			std::unique_lock<std::mutex> l(_data->_mutex);
@@ -464,7 +465,7 @@ namespace rethread
 			impl(cancellation_token_source& target) : _standaloneTarget(nullptr), _sourceTarget(&target)
 			{ }
 
-			virtual void cancel() override
+			void cancel() override
 			{
 				if (_standaloneTarget)
 					_standaloneTarget->cancel();
