@@ -72,6 +72,12 @@
 #define RETHREAD_CONSTEXPR constexpr
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define RETHREAD_ALIGNOF __alignof
+#else
+#define RETHREAD_ALIGNOF alignof
+#endif
+
 namespace rethread {
 namespace detail
 {
