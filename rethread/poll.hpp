@@ -1,5 +1,5 @@
-#ifndef RETHREAD_POLL_H
-#define RETHREAD_POLL_H
+#ifndef RETHREAD_POLL_HPP
+#define RETHREAD_POLL_HPP
 
 // Copyright (c) 2016, Boris Sazonov
 //

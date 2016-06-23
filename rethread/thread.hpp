@@ -1,5 +1,5 @@
-#ifndef RETHREAD_THREAD_H
-#define RETHREAD_THREAD_H
+#ifndef RETHREAD_THREAD_HPP
+#define RETHREAD_THREAD_HPP
 
 // Copyright (c) 2016, Boris Sazonov
 //
