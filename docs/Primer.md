@@ -11,7 +11,7 @@ If a blocking function doesn't support `cancellation_token`, there are two optio
 1. If the function blocks because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
 2. If the function blocks in some other call - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
 
-This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [here TODO:write advanced guide].
+This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](docs/AdvancedGuide.md).
 
 ##Writing cancellable functions
 Adding cancellability to the blocking function involves several steps:

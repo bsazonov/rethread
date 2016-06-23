@@ -2,8 +2,9 @@
 
 Rethread is a header-only C++ library that implements cancellation tokens and RAII-compliant threads.
 
-Getting started information is available in [rethread tutorial](docs/Primer.md).  
-More elaborated design rationale is available [here](docs/Rationale.md).
+Getting started information is available in the [rethread tutorial](docs/Primer.md).  
+Also, there's an [advanced guide](docs/AdvancedGuide.md) about custom cancellation handlers.  
+Design rationale is available [here](docs/Rationale.md).
 
 Tests and benchmarks are here: [rethread_testing](https://github.com/bo-on-software/rethread_testing).
 
