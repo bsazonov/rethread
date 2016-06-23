@@ -10,27 +10,10 @@
 // IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 // WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+#include <rethread/detail/config.hpp>
+
 #include <exception>
 #include <type_traits>
-
-#ifdef __GNUC__
-#define RETHREAD_LIKELY(Condition_)   __builtin_expect((Condition_), 1)
-#define RETHREAD_UNLIKELY(Condition_) __builtin_expect((Condition_), 0)
-#else
-#define RETHREAD_LIKELY(Condition_)   (Condition_)
-#define RETHREAD_UNLIKELY(Condition_) (Condition_)
-#endif
-
-#define RETHREAD_MACRO_BEGIN do {
-#if defined (_MSC_VER) && _MSC_VER < 1900
-#define RETHREAD_MACRO_END \
-        __pragma(warning(push)) \
-        __pragma(warning(disable:4127)) \
-        } while(false) \
-        __pragma(warning(pop))
-#else
-#define RETHREAD_MACRO_END } while(false)
-#endif
 
 #define RETHREAD_THROW(Exception_) ::rethread::detail::throw_exception(Exception_, __FILE__, __LINE__)
 #define RETHREAD_CHECK(Condition_, Exception_) RETHREAD_MACRO_BEGIN if (RETHREAD_UNLIKELY(!(Condition_))) RETHREAD_THROW(Exception_); RETHREAD_MACRO_END
@@ -52,30 +35,6 @@
 #define RETHREAD_ANNOTATE_BEFORE(...)
 #define RETHREAD_ANNOTATE_AFTER(...)
 #define RETHREAD_ANNOTATE_FORGET(...)
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define RETHREAD_NORETURN __declspec(noreturn)
-#else
-#define RETHREAD_NORETURN [[noreturn]]
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define RETHREAD_NOEXCEPT
-#else
-#define RETHREAD_NOEXCEPT noexcept
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define RETHREAD_CONSTEXPR const
-#else
-#define RETHREAD_CONSTEXPR constexpr
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define RETHREAD_ALIGNOF __alignof
-#else
-#define RETHREAD_ALIGNOF alignof
 #endif
 
 namespace rethread {
