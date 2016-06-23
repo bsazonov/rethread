@@ -3,10 +3,11 @@
 Rethread is a header-only C++ library that implements cancellation tokens and RAII-compliant threads.
 
 Getting started information is available in the [rethread tutorial](docs/Primer.md).  
+For performance considerations, take a look at [benchmarks](docs/Performance.md).  
 Also, there's an [advanced guide](docs/AdvancedGuide.md) about custom cancellation handlers.  
 Design rationale is available [here](docs/Rationale.md).
 
-Tests and benchmarks are here: [rethread_testing](https://github.com/bo-on-software/rethread_testing).
+Tests and benchmarks are kept in a separate repository: [rethread_testing](https://github.com/bo-on-software/rethread_testing).
 
 ##Features
 * RAII-compliant threads
@@ -15,10 +16,10 @@ Tests and benchmarks are here: [rethread_testing](https://github.com/bo-on-softw
 * Fine granularity - can cancel separate tasks without terminating the whole thread
 * Can interrupt any POSIX call that cooperates with `poll`
 * Custom cancellation handlers support
-* Super low price for cancellability - no allocations and just two atomic exchanges!
+* [Super low price](docs/Performance.md) for cancellability - no allocations and just two atomic exchanges!
 
 ##Platforms
-Cancellation tokens, threads and cancellable waits for condition_variables are implemented in terms of standard C++11. Obviously, cancelling blocking calls to the OS can't be platform-agnostic.
+Cancellation tokens, threads and cancellable waits for condition variables are implemented in terms of standard C++11. Obviously, cancelling blocking calls to the OS can't be platform-agnostic.
 
 Builds are tested against following compilers:
 #####Travis
