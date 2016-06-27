@@ -3,17 +3,10 @@
 
 Cancellable function is a long or blocking function that should:
 
-* Receive `cancellation_token` from the caller
+* Receive a reference to a `cancellation_token` from the caller
 * Check the token state periodically
-* Return if higher-level code cancels token
-* Pass it to other long or blocking functions it invokes
-
-If a blocking function doesn't support cancellation yet, there are two possible cases:
-
-1. If the function blocks because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
-2. If the function blocks in some other call that can't be reimplemented - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
-
-This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](docs/AdvancedGuide.md).
+* Return if the token enters "cancelled" state
+* Pass the token to other long or blocking functions it invokes
 
 ##Cancellation token
 Cancellation mechanics is encapsulated by a `cancellation_token` object. The token can be in one of two states: "not cancelled" or "cancelled". The state of the token is controlled by the thread object it belongs to.
@@ -41,7 +34,7 @@ This example uses two main `cancellation_token` features:
 while (token)
   // ...
 ```
-Converting `cancellation_token` to boolean is equivalent to the result of `!token.is_cancelled()`. It equals `true` until token enters cancelled state. If some other thread cancels the token, it will return `false`, thus finishing the loop.
+Converting `cancellation_token` to `bool` is equivalent to the result of `!token.is_cancelled()`. It equals `true` as long as the token is "not cancelled". When some other thread cancels the token, it will return `false`, thus finishing the loop.
 #####Interrupting blocking calls
 ```cpp
 rethread::wait(_condition, lock, token);
@@ -49,6 +42,13 @@ rethread::wait(_condition, lock, token);
 Cancellation token implements a generic way to cancel arbitrary blocking calls. Out of the box rethread provides cancellable implementations of `condition_variable::wait`, `this_thread::sleep`, and UNIX `poll`.
 
 ##Writing cancellable functions
+If a blocking function does not support cancellation yet, there are two possible cases:
+
+1. If the function blocks because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
+2. If the function blocks in some other call that can't be reimplemented - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
+
+This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](docs/AdvancedGuide.md).
+
 Adding cancellability to the blocking function involves several steps:
 * Adjust return value
 * Add cancellation_token parameter

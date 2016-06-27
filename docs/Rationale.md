@@ -2,7 +2,7 @@
 This rationale assumes that the reader is familiar with [getting started guide](docs/Primer.md).
 
 ##The problem
-C++11 threads has one inherent problem - they aren't truly RAII-compliant. C++11 standard excerpt:
+C++11 threads has one inherent problem - they are not RAII-compliant. C++11 standard excerpt:
 
 > 30.3.1.3 thread destructor  
 >   ~thread();  
@@ -35,7 +35,7 @@ class dangerous_class
 To fix it, rethread implements RAII-compliant thread wrapper. However, implementation of such a wrapper faces a bigger problem.
 
 ##The bigger problem
-Simply adding join to the thread dtor doesn't make thread any better:
+Simply adding `join` to the thread dtor does not make thread any better:
 ```cpp
 thread_wrapper::~thread_wrapper()
 {
@@ -54,7 +54,7 @@ void use_thread()
   t.join();
 }
 ```
-If `do_work2()` throws, it doesn't cause termination, but it causes thread dtor to hang forever, because `alive` will never become `false`. So, before joining the thread we have to somehow cancel the invoked function. Also, we have to remember that `do_work()` may block on condition_variable or inside OS call.
+If `do_work2()` throws, it will no longer cause termination, but it will cause thread dtor to hang forever, because `alive` will never become `false`. So, before joining the thread we have to somehow cancel the invoked function. Also, we have to remember that `do_work()` may block on condition_variable or inside OS call.
 
 So the bigger problem is:
 #####What is the proper way to cancel a long operation, especially if it is waiting on a condition variable or performing a blocking call to the OS?
