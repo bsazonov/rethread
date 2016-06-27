@@ -1,15 +1,17 @@
 #Getting started with rethread
-`rethread` is all about cancelling functions. Cancellability is necessary for RAII-fication of C++ thread objects.
+`rethread` is all about cancelling functions. Cancellability is necessary for making of C++ thread objects [RAII](http://en.cppreference.com/w/cpp/language/raii)-compliant - to properly terminate a function invoked in a separate thread, such a function should be _cancellable_.
 
-Cancellable function is a long or blocking function that receive `cancellation_token` from caller. It should:
+Cancellable function is a long or blocking function that should:
+
+* Receive `cancellation_token` from the caller
 * Check the token state periodically
 * Return if higher-level code cancels token
-* Pass it to other long or blocking functions
+* Pass it to other long or blocking functions it invokes
 
-If a blocking function doesn't support `cancellation_token`, there are two options:
+If a blocking function doesn't support cancellation yet, there are two possible cases:
 
 1. If the function blocks because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
-2. If the function blocks in some other call - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
+2. If the function blocks in some other call that can't be reimplemented - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
 
 This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](docs/AdvancedGuide.md).
 
