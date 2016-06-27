@@ -16,7 +16,7 @@ Tests and benchmarks are kept in a separate repository: [rethread_testing](https
 * Fine granularity - can cancel separate tasks without terminating the whole thread
 * Can interrupt any POSIX call that cooperates with `poll`
 * Custom cancellation handlers support
-* [Super low price](docs/Performance.md) for cancellability - no allocations and just two atomic exchanges!
+* [Super low price](docs/Performance.md) for cancellability - sometimes cancellable functions actually work faster!
 
 ##Platforms
 Cancellation tokens, threads and cancellable waits for condition variables are implemented in terms of standard C++11. Obviously, cancelling blocking calls to the OS can't be platform-agnostic.
