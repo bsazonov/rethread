@@ -1,4 +1,6 @@
 #Rethread rationale
+This rationale assumes that the reader is familiar with [getting started guide](docs/Primer.md).
+
 ##The problem
 C++11 threads has one inherent problem - they aren't truly RAII-compliant. C++11 standard excerpt:
 
@@ -60,35 +62,7 @@ So the bigger problem is:
 There are different approaches towards answering this question, such as pthread_cancel, boost::thread::interrupt and generic boolean flag. All of these have their own limitations and flaws, so rethread proposes it's own solution to this question: cancellation token.
 
 ##Cancellation token
-Typical usage:
-```cpp
-void do_work(const cancellation_token& token)
-{
-  std::unique_lock lock(_mutex);
-  while (token) // is cancelled?
-  {
-    if (_tasks.empty())
-    {
-      rethread::wait(_condition, lock, token); // cancellable wait
-      continue;
-    }
-    auto task = _tasks.front();
-    // invoke task
-  }
-}
-```
-This example uses two main `cancellation_token` features:
-#####Cancellation state checking
-```cpp
-while (token)
-  // ...
-```
-Converting `cancellation_token` to boolean is equivalent to the result of `!token.is_cancelled()`. It equals `true` until token enters cancelled state. If some other thread cancels the token, it will return `false`, thus finishing the loop.
-#####Interrupting blocking calls
-```cpp
-rethread::wait(_condition, lock, token);
-```
-Cancellation token implements generic way to cancel arbitrary blocking calls. Out of the box rethread provides cancellable implementations for `condition_variable::wait`, `this_thread::sleep`, and UNIX `poll`.
+All of these approaches have limitations and flaws, so `rethread` proposes it's own solution to this question: cancellation token.
 
 ##RAII thread
 `rethread::thread` is

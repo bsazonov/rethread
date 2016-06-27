@@ -15,6 +15,39 @@ If a blocking function doesn't support cancellation yet, there are two possible 
 
 This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](docs/AdvancedGuide.md).
 
+##Cancellation token
+Cancellation mechanics is encapsulated by a `cancellation_token` object. The token can be in one of two states: "not cancelled" or "cancelled". The state of the token is controlled by the thread object it belongs to.
+
+Typical usage:
+```cpp
+void do_work(const cancellation_token& token)
+{
+  std::unique_lock lock(_mutex);
+  while (token) // is cancelled?
+  {
+    if (_tasks.empty())
+    {
+      rethread::wait(_condition, lock, token); // cancellable wait
+      continue;
+    }
+    auto task = _tasks.front();
+    // invoke task
+  }
+}
+```
+This example uses two main `cancellation_token` features:
+#####Cancellation state checking
+```cpp
+while (token)
+  // ...
+```
+Converting `cancellation_token` to boolean is equivalent to the result of `!token.is_cancelled()`. It equals `true` until token enters cancelled state. If some other thread cancels the token, it will return `false`, thus finishing the loop.
+#####Interrupting blocking calls
+```cpp
+rethread::wait(_condition, lock, token);
+```
+Cancellation token implements a generic way to cancel arbitrary blocking calls. Out of the box rethread provides cancellable implementations of `condition_variable::wait`, `this_thread::sleep`, and UNIX `poll`.
+
 ##Writing cancellable functions
 Adding cancellability to the blocking function involves several steps:
 * Adjust return value
