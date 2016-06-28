@@ -21,7 +21,7 @@ Tests and benchmarks are kept in a separate repository: [rethread_testing](https
 ##Platforms
 Cancellation tokens, threads and cancellable waits for condition variables are implemented in terms of standard C++11. Obviously, cancelling blocking calls to the OS can't be platform-agnostic.
 
-Builds are tested against following compilers:
+`rethread` is continuously tested with the following compilers:
 #####Travis
 [![Build Status](https://travis-ci.org/bo-on-software/rethread_testing.svg?branch=master)](https://travis-ci.org/bo-on-software/rethread_testing)
 * gcc-4.8

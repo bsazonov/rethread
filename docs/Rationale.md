@@ -1,5 +1,5 @@
 #Rethread rationale
-This rationale assumes that the reader is familiar with [getting started guide](docs/Primer.md).
+This rationale assumes that the reader is familiar with [getting started guide](Primer.md).
 
 ##The problem
 C++11 threads has one inherent problem - they are not RAII-compliant. C++11 standard excerpt:
@@ -137,7 +137,7 @@ Pros:
 + Low overhead
 + Supports any condition variable with standard interface (e.g. `boost::condition_variable`)
 + Supports custom cancellation handlers
-+ Eases code decomposition (see `concurrent_queue` example in the [getting started guide](docs/Primer.md))
++ Eases code decomposition (see `concurrent_queue` example in the [getting started guide](Primer.md))
 + Fine granularity - can cancel tasks instead of threads
 + Can be used in exception-free environment
 + Obvious cancellation points
