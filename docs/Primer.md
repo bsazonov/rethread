@@ -45,7 +45,7 @@ Cancellation token implements a generic way to cancel arbitrary blocking calls. 
 If a blocking function does not support cancellation yet, there are two possible cases:
 
 1. If the function is blocked because of `condition_variable`, `this_thread::sleep` or a simple busy-loop - it has to be reimplemented to add cancellation support
-2. If the function blocks in some other call that can't be reimplemented - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
+2. If the function is blocked in some other call that can't be reimplemented - it is necessary to write proper `cancellation_handler` and set up proper wake-up mechanism
 
 This guide covers option 1. Advanced guide about writing custom cancellation handlers can be found [advanced guide](AdvancedGuide.md).
 
