@@ -35,7 +35,7 @@ namespace rethread
 		public:
 			poll_cancellation_handler()
 			{
-				_eventfd = ::eventfd(0, 0);
+				_eventfd = ::eventfd(0, EFD_CLOEXEC);
 				RETHREAD_CHECK(_eventfd != -1, std::system_error(errno, std::system_category(), "eventfd failed"));
 			}
 
@@ -68,7 +68,7 @@ namespace rethread
 
 		public:
 			poll_cancellation_handler()
-			{ RETHREAD_CHECK(::pipe(_pipe) == 0, std::system_error(errno, std::system_category())); }
+			{ RETHREAD_CHECK(::pipe2(_pipe, O_CLOEXEC) == 0, std::system_error(errno, std::system_category())); }
 
 			~poll_cancellation_handler()
 			{
