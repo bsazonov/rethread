@@ -87,9 +87,9 @@ public:
 };
 ```
 ###Adjust return value
-Function must have some reasonable value to return upon cancellation. In our case we'll use optional<T> template from boost (and hopefully C++17).
+Function must have some reasonable value to return upon cancellation. In our case we'll use `optional<T>` template from boost (and hopefully C++17).
 ```cpp
-optional<T> pop()
+std::optional<T> pop()
 {
   std::unique_lock<std::mutex> l(_mutex);
   while (_queue.empty())
@@ -103,7 +103,7 @@ optional<T> pop()
 ###Add cancellation_token parameter
 Cancellable functions should accept cancellation_token by const reference. We'll make use of this constness a bit later.
 ```cpp
-optional<T> pop(const cancellation_token& token)
+std::optional<T> pop(const cancellation_token& token)
 {
   std::unique_lock<std::mutex> l(_mutex);
   while (_queue.empty())
@@ -117,7 +117,7 @@ optional<T> pop(const cancellation_token& token)
 ###Reimplement blocking parts
 In our example thread blocks in `condition_variable::wait`. For condition variables with C++11-like interface rethread provides cancellable wait as a free function. IMPORTANT NOTE: cancellable wait with predicate returns `bool`, similarly to predicate-based versions of `wait_for` and `wait_until` in regular `condition_variable`.
 ```cpp
-optional<T> pop(const cancellation_token& token)
+std::optional<T> pop(const cancellation_token& token)
 {
   std::unique_lock<std::mutex> l(_mutex);
   while (_queue.empty() && token)
@@ -139,7 +139,7 @@ Sometimes it makes sense to have non-cancellable version of a function. Use case
 
 The simplest way to add non-cancellable version of a function is to use dummy_cancellation_token as a default value. It is copyable implementation of cancellation_token that may never enter cancelled state.
 ```cpp
-optional<T> pop(const cancellation_token& token = dummy_cancellation_token())
+std::optional<T> pop(const cancellation_token& token = dummy_cancellation_token())
 {
   std::unique_lock<std::mutex> l(_mutex);
   while (_queue.empty() && token)
@@ -171,7 +171,7 @@ bool wait(Condition& cv, Lock& lock, const cancellation_token& token, Predicate 
 ```
 Using this version of wait, we can shorten `pop` to:
 ```cpp
-optional<T> pop(const cancellation_token& token = dummy_cancellation_token())
+std::optional<T> pop(const cancellation_token& token = dummy_cancellation_token())
 {
   std::unique_lock<std::mutex> l(_mutex);
   if (!rethread::wait(_condition, l, [&_queue] { return !_queue.empty(); }))
