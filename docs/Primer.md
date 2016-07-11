@@ -187,3 +187,41 @@ Our implementation of `pop` exposes one important property - its behavior is con
 * A lot of threads can wait in `pop` and if one of them gets cancelled - it will return empty `optional`, while others will continue to wait
 * If new item appears in `concurrent_queue` before cancellation, thread will finish working with this item before handling cancellation request
 * If cancellation was performed for some kind of 'task' - the same thread can later safely return to `pop`
+
+##RAII threads
+`rethread` also provides a RAII-compliant thread implementation. It stores a `cancellation_token` object and passes it to the invoked function. When `rethread::thread` object is destroyed, it's destructor at first cancels the stored token and then joins the underlying thread. When `rethread::thread` is used with a cancellable function, it has the following properties:
+
+* Deterministic thread lifetime - no longer than `rethread::thread` object
+* Exception safety - no need to explicitly call `join()` before destructor
+* Predictable destruction time
+
+###Thread example
+Let's write an object that uses aforementioned `concurrent_queue` to asynchronously execute functions.
+```cpp
+class task_executor final
+{
+public:
+  task_executor() :
+    _thread(std::bind(&task_executor::thread_function, this, std::placeholders::_1))
+  { }
+
+  ~task_executor() = default;
+
+  void add_task(const std::function<void()>& f)
+  { _queue.push(f); }
+
+private:
+  concurrent_queue _queue;
+  rethread::thread _thread;
+
+  void thread_function(const rethread::cancellation_token& t)
+  {
+    while (t)
+    {
+      std::optional<std::function<void()>> f = _queue.pop(t);
+      if (f)
+        (*f)();
+    }
+  }
+};
+```
