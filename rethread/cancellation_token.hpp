@@ -446,7 +446,7 @@ namespace rethread
 		}
 
 		bool is_cancelled() const
-		{ return !_token; }
+		{ return !_token || !*_token; }
 	};
 
 
